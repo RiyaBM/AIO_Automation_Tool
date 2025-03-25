@@ -560,8 +560,8 @@ with st.form("analysis_form"):
     
 if submitted:
     # Access the API key from Streamlit's secrets
-    SERP_API_KEY = st.secrets["SERPAPI_KEY"]
-    if not serp_api_key:
+    SERPAPI_KEY = st.secrets["SERPAPI_KEY"]
+    if not SERPAPI_KEY:
         st.error("SERP API Key is required!")
     else:
         st.info("Fetching SERP data for keyword: " + keyword)
