@@ -565,7 +565,7 @@ if submitted:
         st.error("SERP API Key is required!")
     else:
         st.info("Fetching SERP data for keyword: " + keyword)
-        serp_data = get_serp_results(keyword, serp_api_key)
+        serp_data = get_serp_results(keyword, SERPAPI_KEY)
         domain = extract_domain(target_url).lower()
         competitor_urls = extract_competitor_urls(serp_data)
         ai_overview_competitors = get_ai_overview_competitors(serp_data)
@@ -579,8 +579,8 @@ if submitted:
         content_data = analyze_target_content(target_url, serp_data)
         
         st.info("Fetching social results from LinkedIn and Reddit...")
-        linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=serp_api_key)
-        reddit_results = get_social_results(keyword, "reddit.com", limit_max=5, serp_api_key=serp_api_key)
+        linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=SERPAPI_KEY)
+        reddit_results = get_social_results(keyword, "reddit.com", limit_max=5, serp_api_key=SERPAPI_KEY)
         linkedin_titles = [r["title"] for r in linkedin_results]
         reddit_titles = [r["title"] for r in reddit_results]
         ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.75)
@@ -603,7 +603,7 @@ if submitted:
                 "suggestions": "Participate in Reddit discussions to boost engagement."
             }
         ]
-        youtube_results = get_youtube_results(keyword, limit_max=5, serp_api_key=serp_api_key)
+        youtube_results = get_youtube_results(keyword, limit_max=5, serp_api_key=SERPAPI_KEY)
         
         if domain == "efax":
             domain = "eFax"
