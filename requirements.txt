@@ -6,6 +6,5 @@ pdfkit
 jinja2
 shutil
 tempfile
-wkhtmltopdf
 sentence-transformers
 python-dotenv
