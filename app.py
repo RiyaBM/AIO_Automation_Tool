@@ -559,8 +559,8 @@ with st.form("analysis_form"):
     submitted = st.form_submit_button("Run Analysis")
     
 if submitted:
-    # Use the SERP API key from env if not provided
-    serp_api_key = os.getenv("SERPAPI_KEY")
+    # Access the API key from Streamlit's secrets
+    SERP_API_KEY = st.secrets["SERP_API_KEY"]
     if not serp_api_key:
         st.error("SERP API Key is required!")
     else:
