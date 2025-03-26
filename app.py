@@ -444,14 +444,14 @@ def generate_pdf_report(data):
     """
     HTML_TEMPLATE = """
     <!DOCTYPE html>
-    <html lang=\"en\">
+    <html lang="en">
     <head>
-        <meta charset=\"utf-8\">
-        <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>AIO Analysis Report</title>
         <style>
             body {
-                font-family: \"Segoe UI\", Tahoma, Geneva, Verdana, sans-serif;
+                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
                 margin: 20px;
                 color: #444;
                 line-height: 1.6;
@@ -497,10 +497,11 @@ def generate_pdf_report(data):
     </head>
     <body>
         <h1>AI Overview Analysis Report</h1>
-        <p><strong>Keyword:</strong> {{ keyword }}</p>
-        <p><strong>Target URL:</strong> <a href=\"{{ target_url }}\">{{ target_url }}</a></p>
-        <p><strong>{{ domain }} Found in AI Overview Sources:</strong> {{ domain_found }}</p>
-        <h2>{{ domain }} Ranking</h2>
+        <p><strong>Keyword:</strong> {{ data.keyword }}</p>
+        <p><strong>Target URL:</strong> <a href="{{ data.target_url }}">{{ data.target_url }}</a></p>
+        <p><strong>{{data.domain}} Found in AI Overview Sources:</strong> {{ data.domain_found }}</p>
+
+        <h2>{{data.domain}} Ranking</h2>
         <table>
             <thead>
                 <tr>
@@ -511,12 +512,168 @@ def generate_pdf_report(data):
             </thead>
             <tbody>
                 <tr>
-                    <td>{{ keyword }}</td>
-                    <td>{{ organic_position if organic_position else 'Not Ranking within 5 Pages' }}</td>
-                    <td>{{ ai_position if ai_position else 'Not Ranking' }}</td>
+                    <td>{{ data.keyword }}</td>
+                    <td>
+                        {% if data.domain_organic_position %}
+                            {{ data.domain_organic_position }}
+                        {% else %}
+                            Not Ranking
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if data.domain_ai_position %}
+                            {{ data.domain_ai_position }}
+                        {% else %}
+                            Not Ranking
+                        {% endif %}
+                    </td>
                 </tr>
             </tbody>
         </table>
+
+        <h2>AI Overview Content</h2>
+        <div style="white-space: pre-line;">{{ data.ai_overview_content | replace("\n", "<br>") | safe }}</div>
+
+        <h2>Relevant 5 Pages from AI Overview Sources</h2>
+        <ul>
+            {% for url in data.ai_overview_competitors %}
+                <li><a href="{{ url }}">{{ url }}</a></li>
+            {% endfor %}
+        </ul>
+        
+        <p><strong>Number of AI Sources in Organic Search (first 20):</strong> {{ data.ai_sources_in_organic_count }}</p>
+        
+        <h2>Content Analysis</h2>
+        <h3>Headers</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Header Tag</th>
+                    <th>Header Text</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for header in data.content_analysis.headers %}
+                <tr>
+                    <td>{{ header.tag }}</td>
+                    <td>{{ header.text }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        {% if data.content_analysis.missing_headers %}
+        <h3>Missing Headers (compared to AI Overview)</h3>
+        <ul>
+            {% for mh in data.content_analysis.missing_headers %}
+                <li>{{ mh }}</li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p>No missing headers compared to AI Overview.</p>
+        {% endif %}
+        
+        <h3>Images (After H1 and Before FAQ)</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th style="width:30%;">Image Source</th>
+                    <th>Alt Text</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for image in data.content_analysis.images %}
+                <tr>
+                    <td>{{ image.src }}</td>
+                    <td>{{ image.alt }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h3>Schema Markup</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Schema</th>
+                    <th>Implemented</th>
+                    <th>Remarks</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in data.content_analysis.schema_table %}
+                <tr>
+                    <td>{{ row.schema }}</td>
+                    <td>{{ row.implemented }}</td>
+                    <td>{{ row.remarks }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        
+        <h2>Brand Mentionings</h2>
+
+        <h3>YouTube</h3>
+        {% if data.youtube_results %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Displayed Link</th>
+                        <th>Source</th>
+                        <th>Snippet</th>
+                        <th>Key Moments</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for yt in data.youtube_results %}
+                    <tr>
+                        <td><a href="{{ yt.link }}">{{ yt.title }}</a></td>
+                        <td>{{ yt.displayed_link }}</td>
+                        <td>{{ yt.source }}</td>
+                        <td>{{ yt.snippet }}</td>
+                        <td style="white-space: pre-line;">{{ yt.key_moments }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No YouTube results found.</p>
+        {% endif %}
+        <h4>Suggestions:</h4>
+        <p>It is good practice to:
+            <ul>
+            <li>Upload videos frequently.</li>
+            <li>Write keyword-rich descriptions with timestamps and CTAs.</li>
+        </ul></p>
+
+        <h3>Social Channels</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Social Channel</th>
+                    <th>Relevant Articles / Questions</th>
+                    <th>Suggestions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for channel in data.social_channels %}
+                <tr>
+                    <td>{{ channel.channel }}</td>
+                    <td>{{ channel.relevant | safe }}</td>
+                    <td>{{ channel.suggestions }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2>Top SERP URLs</h2>
+        <ul>
+            {% for url in data.competitor_urls %}
+                <li><a href="{{ url }}">{{ url }}</a></li>
+            {% endfor %}
+        </ul>
     </body>
     </html>
     """
