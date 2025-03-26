@@ -167,19 +167,27 @@ def schema_implemented(schema_data, schema_type):
                     return True
     return False
 
-def build_schema_table(schema_data):
-    SCHEMA_CHECKLIST = [
-        ("Breadcrumbs", "BreadcrumbList"),
-        ("FAQ", "FAQPage"),
-        ("Article", "Article"),
-        ("Video", "VideoObject"),
-        ("Organization", "Organization"),
-        ("How-to", "HowTo"),
-    ]
+def fetch_page_content(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        print(f"Error fetching URL: {e}")
+        return None
+
+def build_schema_table(schema_data, url):
+    
+    content = fetch_page_content(url)
+    if content is None:
+        content = ""
+        
     results = []
     for label, stype in SCHEMA_CHECKLIST:
         if schema_implemented(schema_data, stype):
             results.append({"schema": label, "implemented": "Yes", "remarks": "-"})
+        elif stype in content:
+            results.append({"schema": label, "implemented": "Yes", "remarks": "Implemented in Microdata"})
         else:
             results.append({"schema": label, "implemented": "No", "remarks": "Need to be Implemented"})
     return results
@@ -221,7 +229,7 @@ def analyze_target_content(target_url, serp_data):
             schema_data.append(data)
         except Exception as e:
             st.error("Error parsing schema: " + str(e))
-    schema_table = build_schema_table(schema_data)
+    schema_table = build_schema_table(schema_data, target_url)
     ai_overview_headers = extract_ai_overview_headers(serp_data)
     missing_headers = compare_headers(page_headers, ai_overview_headers)
     return {"headers": page_headers, "missing_headers": missing_headers,
@@ -517,31 +525,6 @@ def generate_pdf_report(data):
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
         pdfkit.from_string(html_report, pdf_file.name, configuration=config)
         return pdf_file.name
-    
-# def generate_docx_report(data):
-#     """
-#     Generate a DOCX report.
-#     """
-#     document = Document()
-#     document.add_heading("AI Overview Analysis Report", level=1)
-#     document.add_paragraph(f"Keyword: {data['keyword']}")
-#     document.add_paragraph(f"Target URL: {data['target_url']}")
-#     document.add_paragraph(f"{data['domain']} Found in AI Overview Sources: {data['domain_found']}")
-    
-#     document.add_heading("Ranking", level=2)
-#     table = document.add_table(rows=2, cols=3)
-#     hdr_cells = table.rows[0].cells
-#     hdr_cells[0].text = "Keyword"
-#     hdr_cells[1].text = "Google Search"
-#     hdr_cells[2].text = "Google - AI Overview"
-#     row_cells = table.rows[1].cells
-#     row_cells[0].text = data['keyword']
-#     row_cells[1].text = str(data.get("organic_position", "Not Ranking"))
-#     row_cells[2].text = str(data.get("ai_position", "Not Ranking"))
-    
-#     with tempfile.NamedTemporaryFile(delete=False, suffix=".docx") as docx_file:
-#         document.save(docx_file.name)
-#         return docx_file.name
 
 # -------------------------------
 # Streamlit UI Integration
