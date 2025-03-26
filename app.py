@@ -535,10 +535,7 @@ def generate_pdf_report(data):
                 </tr>
             </tbody>
         </table>
-
-        <h2>AI Overview Content</h2>
-        <div style="white-space: pre-line;">{{ data.ai_overview_content | replace("\n", "<br>") | safe }}</div>
-
+        
     </body>
     </html>
     """
