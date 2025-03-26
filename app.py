@@ -678,6 +678,7 @@ def generate_pdf_report(data):
     </html>
     """
     template = Template(HTML_TEMPLATE)
+    print(json.dumps(data, indent=2))
     html_report = template.render(**data)
 
     # Auto-detect wkhtmltopdf
