@@ -30,6 +30,16 @@ HEADERS = {
     )
 }
 
+
+SCHEMA_CHECKLIST = [
+        ("Breadcrumbs", "BreadcrumbList"),
+        ("FAQ", "FAQPage"),
+        ("Article", "Article"),
+        ("Video", "VideoObject"),
+        ("Organization", "Organization"),
+        ("How-to", "HowTo"),
+    ]
+
 # -------------------------------
 # Utility and Analysis Functions
 # -------------------------------
