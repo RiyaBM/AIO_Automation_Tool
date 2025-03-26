@@ -197,7 +197,7 @@ def build_schema_table(schema_data, url):
         if schema_implemented(schema_data, stype):
             results.append({"schema": label, "implemented": "Yes", "remarks": "-"})
         elif stype in content:
-            results.append({"schema": label, "implemented": "Yes", "remarks": "Implemented in Microdata"})
+            results.append({"schema": label, "implemented": "Yes", "remarks": "-"})
         else:
             results.append({"schema": label, "implemented": "No", "remarks": "Need to be Implemented"})
     return results
