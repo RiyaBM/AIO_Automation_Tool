@@ -305,7 +305,8 @@ def add_hyperlink(paragraph, url, text):
     paragraph._p.append(hyperlink)
     return hyperlink
 
-def generate_docx_report(data, domain, output_file="seo_report.docx"):
+def generate_docx_report(data):
+    output_file= "aio_report_"+str(data.get("keyword", ""))+".docx"
     document = Document()
     document.add_heading("SEO Analysis Report", level=1)
     p = document.add_paragraph()
