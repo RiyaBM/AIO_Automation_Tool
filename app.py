@@ -591,110 +591,11 @@ def generate_pdf_report(data):
             </tbody>
         </table>
 
-        <h3>Schema Markup</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Schema</th>
-                    <th>Implemented</th>
-                    <th>Remarks</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for row in data.content_analysis.schema_table %}
-                <tr>
-                    <td>{{ row.schema }}</td>
-                    <td>{{ row.implemented }}</td>
-                    <td>{{ row.remarks }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        
-        <h2>Brand Mentionings</h2>
-
-        <h3>YouTube</h3>
-        {% if data.youtube_results %}
-            <table>
-                <thead>
-                    <tr>
-                        <th>Title</th>
-                        <th>Displayed Link</th>
-                        <th>Source</th>
-                        <th>Snippet</th>
-                        <th>Key Moments</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for yt in data.youtube_results %}
-                    <tr>
-                        <td><a href="{{ yt.link }}">{{ yt.title }}</a></td>
-                        <td>{{ yt.displayed_link }}</td>
-                        <td>{{ yt.source }}</td>
-                        <td>{{ yt.snippet }}</td>
-                        <td style="white-space: pre-line;">{{ yt.key_moments }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        {% else %}
-            <p>No YouTube results found.</p>
-        {% endif %}
-        <h4>Suggestions:</h4>
-        <p>It is good practice to:
-            <ul>
-            <li>Upload videos frequently.</li>
-            <li>Write keyword-rich descriptions with timestamps and CTAs.</li>
-        </ul></p>
-
-        <h3>Social Channels</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Social Channel</th>
-                    <th>Relevant Articles / Questions</th>
-                    <th>Suggestions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for channel in data.social_channels %}
-                <tr>
-                    <td>{{ channel.channel }}</td>
-                    <td>{{ channel.relevant | safe }}</td>
-                    <td>{{ channel.suggestions }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        <h2>Top SERP URLs</h2>
-        <ul>
-            {% for url in data.competitor_urls %}
-                <li><a href="{{ url }}">{{ url }}</a></li>
-            {% endfor %}
-        </ul>
     </body>
     </html>
     """
     template = Template(HTML_TEMPLATE)
-    html_report = template.render(
-        keyword=data.get("keyword", ""),
-        target_url=data.get("target_url", "#"),
-        domain=data.get("domain", ""),
-        domain_found=data.get("domain_found", "No"),
-        domain_organic_position=data.get("domain_organic_position", "Not Ranking"),
-        domain_ai_position=data.get("domain_ai_position", "Not Ranking"),
-        ai_overview_content=data.get("ai_overview_content", "").replace("\n", "<br>"),
-        ai_overview_competitors=data.get("ai_overview_competitors", []),
-        ai_sources_in_organic_count=data.get("ai_sources_in_organic_count", 0),
-        competitor_urls = data.get("competitor_url", []),
-        content_analysis = data.get("content_analysis", {"headers":[], "images": [], "missing_headers": [], "schema_table":[]}),
-        social_channels = data.get("social_channels", []),
-        youtube_results = data.get("youtube_results", []),
-        ranked_linkedin_titles = data.get("ranked_linkedin_titles", []),
-        ranked_reddit_titles = data.get("ranked_reddit_titles", [])
-    )
+    html_report = template.render(**data)
 
     # Auto-detect wkhtmltopdf
     wkhtmltopdf_path = shutil.which("wkhtmltopdf") or r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe"
