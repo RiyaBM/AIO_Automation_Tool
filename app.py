@@ -334,7 +334,7 @@ def generate_docx_report(data, domain, output_file="seo_report.docx"):
     ai_content = data.get("ai_overview_content", "")
     for line in ai_content.split("\n"):
         document.add_paragraph(line)
-    document.add_heading("Top 4 Pages from AI Overview Sources", level=2)
+    document.add_heading("Relevant 5 Pages from AI Overview Sources", level=2)
     if data.get("ai_overview_competitors"):
         for url in data.get("ai_overview_competitors"):
             p = document.add_paragraph(style="List Bullet")
@@ -413,6 +413,10 @@ def generate_docx_report(data, domain, output_file="seo_report.docx"):
             row_cells[4].text = yt.get("key_moments", "")
     else:
         document.add_paragraph("No YouTube results found.")
+    document.add_heading("Suggetions:", level=4)
+    for line in ["Upload videos frequently.", "Write keyword-rich descriptions with timestamps and CTAs."]:
+         document.add_paragraph(line, style="List Bullet")
+    
     document.add_heading("Social Channels", level=3)
     if data.get("social_channels"):
         tbl = document.add_table(rows=1, cols=3)
@@ -534,63 +538,6 @@ def generate_pdf_report(data):
         <h2>AI Overview Content</h2>
         <div style="white-space: pre-line;">{{ data.ai_overview_content | replace("\n", "<br>") | safe }}</div>
 
-        <h2>Relevant 5 Pages from AI Overview Sources</h2>
-        <ul>
-            {% for url in data.ai_overview_competitors %}
-                <li><a href="{{ url }}">{{ url }}</a></li>
-            {% endfor %}
-        </ul>
-        
-        <p><strong>Number of AI Sources in Organic Search (first 20):</strong> {{ data.ai_sources_in_organic_count }}</p>
-        
-        <h2>Content Analysis</h2>
-        <h3>Headers</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th>Header Tag</th>
-                    <th>Header Text</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for header in data.content_analysis.headers %}
-                <tr>
-                    <td>{{ header.tag }}</td>
-                    <td>{{ header.text }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
-        {% if data.content_analysis.missing_headers %}
-        <h3>Missing Headers (compared to AI Overview)</h3>
-        <ul>
-            {% for mh in data.content_analysis.missing_headers %}
-                <li>{{ mh }}</li>
-            {% endfor %}
-        </ul>
-        {% else %}
-        <p>No missing headers compared to AI Overview.</p>
-        {% endif %}
-        
-        <h3>Images (After H1 and Before FAQ)</h3>
-        <table>
-            <thead>
-                <tr>
-                    <th style="width:30%;">Image Source</th>
-                    <th>Alt Text</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for image in data.content_analysis.images %}
-                <tr>
-                    <td>{{ image.src }}</td>
-                    <td>{{ image.alt }}</td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-
     </body>
     </html>
     """
@@ -702,11 +649,6 @@ if submitted:
         st.markdown("#### AI Overview Content")
         st.text(ai_overview_content)
 
-        st.info("Generating PDF Report...")
-        pdf_path = generate_pdf_report(report_data)
-        with open(pdf_path, "rb") as file:
-            st.download_button("Download PDF Report", data=file, file_name="SEO_Report.pdf", mime="application/pdf")
-
         st.info("Generating DOCX Report")
 
         # Define output file path
@@ -726,3 +668,8 @@ if submitted:
                 )
         else:
             st.error("Error generating DOCX report. Please try again.")
+
+        st.info("Generating PDF Report...")
+        pdf_path = generate_pdf_report(report_data)
+        with open(pdf_path, "rb") as file:
+            st.download_button("Download PDF Report", data=file, file_name="SEO_Report.pdf", mime="application/pdf")
