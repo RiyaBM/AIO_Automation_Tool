@@ -305,8 +305,7 @@ def add_hyperlink(paragraph, url, text):
     paragraph._p.append(hyperlink)
     return hyperlink
 
-def generate_docx_report(data):
-    output_file= "aio_report_"+str(data.get("keyword", ""))+".docx"
+def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     document = Document()
     document.add_heading("SEO Analysis Report", level=1)
     p = document.add_paragraph()
@@ -535,7 +534,7 @@ def generate_pdf_report(data):
                 </tr>
             </tbody>
         </table>
-        
+
     </body>
     </html>
     """
@@ -650,7 +649,8 @@ if submitted:
         st.info("Generating DOCX Report")
 
         # Define output file path
-        docx_output_file = "SEO_Report_"+keyword+".docx"
+        docx_output_file = "AIO_Report_"+keyword+".docx"
+        pdf_output_file = "AIO_Report_"+keyword+".pdf"
 
         # Generate DOCX report
         generate_docx_report(report_data, domain, output_file=docx_output_file)
@@ -670,4 +670,4 @@ if submitted:
         st.info("Generating PDF Report...")
         pdf_path = generate_pdf_report(report_data)
         with open(pdf_path, "rb") as file:
-            st.download_button("Download PDF Report", data=file, file_name="SEO_Report.pdf", mime="application/pdf")
+            st.download_button("Download PDF Report", data=file, file_name=pdf_output_file, mime="application/pdf")
