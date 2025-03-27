@@ -34,7 +34,6 @@ SCHEMA_CHECKLIST = [
         ("Breadcrumbs", "BreadcrumbList"),
         ("FAQ", "FAQPage"),
         ("Article", "articleBody"),
-        ("Article", "articleSection"),
         ("Video", "VideoObject"),
         ("Organization", "Organization"),
         ("How-to", "HowTo"),
@@ -171,21 +170,42 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
          document.add_paragraph(line, style="List Bullet")
     
     document.add_heading("Social Channels", level=3)
+    
     if data.get("social_channels"):
         tbl = document.add_table(rows=1, cols=3)
         tbl.style = 'Table Grid'
+        
+        # Table headers
         hdr_cells = tbl.rows[0].cells
         hdr_cells[0].text = "Social Channel"
         hdr_cells[1].text = "Relevant Articles / Questions"
         hdr_cells[2].text = "Suggestions"
+
+        # Populate table rows
         for channel in data["social_channels"]:
             row_cells = tbl.add_row().cells
             row_cells[0].text = channel.get("channel", "")
+            
+            # Process multiple hyperlinks correctly
+            relevant_text = channel.get("relevant", "")
             p = row_cells[1].paragraphs[0]
-            add_hyperlink(p, channel.get("link", ""), channel.get("relevant", ""))
+            
+            # Extracting links and titles properly
+            if "<a href=" in relevant_text:
+                import re
+                links = re.findall(r"<a href='(.*?)' target='_blank'>(.*?)</a>", relevant_text)
+                
+                for idx, (url, title) in enumerate(links):
+                    add_hyperlink(p, url, title)
+                    if idx < len(links) - 1:
+                        p.add_run("\n")  # Add line break between links
+            else:
+                p.add_run(relevant_text)  # If no links, just add plain text
+            
             row_cells[2].text = channel.get("suggestions", "")
     else:
         document.add_paragraph("No social channels data found.")
+        
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
         for url in data["competitor_urls"]:
