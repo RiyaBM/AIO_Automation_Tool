@@ -21,24 +21,6 @@ HEADERS = {
     )
 }
 
-SCHEMA_CHECKLIST = [
-        ("Breadcrumbs", "BreadcrumbList"),
-        ("FAQ", "FAQPage"),
-        ("Article", "Article"),
-        ("Video", "VideoObject"),
-        ("Organization", "Organization"),
-        ("How-to", "HowTo"),
-    ]
-
-SCHEMA_CHECKLIST = [
-        ("Breadcrumbs", "BreadcrumbList"),
-        ("FAQ", "FAQPage"),
-        ("Article", "articleBody"),
-        ("Video", "VideoObject"),
-        ("Organization", "Organization"),
-        ("How-to", "HowTo"),
-    ]
-
 def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     document = Document()
     document.add_heading("SEO Analysis Report", level=1)
@@ -75,12 +57,50 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             add_hyperlink(p, url, url)
     else:
         document.add_paragraph("No AI Overview Competitors found.")
+
+    document.add_heading("Other Pages from AI Overview Sources", level=3)
+    document.add_heading("Forbes:", level=4)
+    if data.get("ai_overview_forbes"):
+        for url in data.get("ai_overview_forbes"):
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No Forbes pages found.")
+    document.add_heading("PCMag:", level=4)
+    if data.get("ai_overview_pcmag"):
+        for url in data.get("ai_overview_pcmag"):
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No PCMag pages found.")
+    document.add_heading("YouTybe:", level=4)
+    if data.get("ai_overview_youtube"):
+        for url in data.get("ai_overview_youtube"):
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No YouTube videos found.")
+    document.add_heading("Linkedin:", level=4)
+    if data.get("ai_overview_linkedin"):
+        for url in data.get("ai_overview_linkedin"):
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No LinkedIn pages found.")
+    document.add_heading("Reddit:", level=4)
+    if data.get("ai_overview_reddit"):
+        for url in data.get("ai_overview_reddit"):
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No Reddit pages found.")
+
     p = document.add_paragraph()
     p.add_run("Number of AI Sources in Organic Search (first 20): ").bold = True
     p.add_run(str(data.get("ai_sources_in_organic_count", "")))
 
     # Competitors Section
-    document.add_heading("Competitors Listed By", level=2)
+    document.add_heading("Competitors Listed", level=2)
 
     if "competitors" in data:
         table = document.add_table(rows=1, cols=3)
@@ -93,8 +113,29 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
         for competitor in data["competitors"]:
             row_cells = table.add_row().cells
             row_cells[0].text = competitor.get("name", "")
-            row_cells[1].text = competitor.get("content", "")
+            content = competitor.get("content", "")
+            if isinstance(content, list):
+                row_cells[1].text = "\n".join(f"• {item}" for item in content)  # Format as bullet list
+            else:
+                row_cells[1].text = content  # Keep as-is if not a list
             row_cells[2].text = competitor.get("source", "")
+
+    # PAA Section
+    document.add_heading("People Also Ask", level=2)
+
+    if "peopleAlsoAsk_ai_overview" in data:
+        table = document.add_table(rows=1, cols=3)
+        table.style = "Table Grid"
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Question"
+        hdr_cells[1].text = "AI Content"
+        hdr_cells[2].text = "Source"
+
+        for ques in data["peopleAlsoAsk_ai_overview"]:
+            row_cells = table.add_row().cells
+            row_cells[0].text = ques.get("question", "")
+            row_cells[1].text = ques.get("content", "")
+            row_cells[2].text = ques.get("link", "")
 
     document.add_heading("Content Analysis", level=2)
     document.add_heading("Headers", level=3)

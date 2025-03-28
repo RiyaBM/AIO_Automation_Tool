@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, extract_competitor_urls, get_ai_overview_competitors, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, rank_titles_by_semantic_similarity, get_youtube_results, get_ai_overview_competitors_content
+from utils import get_serp_results, extract_domain, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, rank_titles_by_semantic_similarity, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 
 # -------------------------------
@@ -29,7 +29,7 @@ if submitted:
         serp_data = get_serp_results(keyword, SERPAPI_KEY)
         domain = extract_domain(target_url).lower()
         competitor_urls = extract_competitor_urls(serp_data)
-        ai_overview_competitors = get_ai_overview_competitors(serp_data)
+        ai_overview_competitors = get_ai_overview_competitors(serp_data, domain)
         domain_present = check_domain_in_ai_overview(serp_data, domain, target_url)
         domain_organic_position = find_domain_position_in_organic(serp_data, domain)
         domain_ai_position = find_domain_position_in_ai(serp_data, domain)
@@ -37,6 +37,12 @@ if submitted:
         ai_sources_in_organic_count = sum(1 for source in ai_overview_competitors if source in competitor_urls_first20)
         ai_overview_content = get_ai_overview_content(serp_data)
         competitors = get_ai_overview_competitors_content(serp_data, domain)
+        ai_overview_youtybe = get_ai_overview_othersites(serp_data, "youtube")
+        ai_overview_linkedin = get_ai_overview_othersites(serp_data, "linkedin")
+        ai_overview_reddit = get_ai_overview_othersites(serp_data, "reddit")
+        ai_overview_forbes = get_ai_overview_othersites(serp_data, "forbes")
+        ai_overview_pcmag = get_ai_overview_othersites(serp_data, "pcmag")
+        people_also_ask_ai_overview = get_ai_overview_questions(serp_data)
         st.info("Analyzing target URL content...")
         content_data = analyze_target_content(target_url, serp_data)
         
@@ -88,7 +94,13 @@ if submitted:
             "social_channels": social_channels,
             "youtube_results": youtube_results,
             "ranked_linkedin_titles": ranked_linkedin_titles,
-            "ranked_reddit_titles": ranked_reddit_titles
+            "ranked_reddit_titles": ranked_reddit_titles,
+            "competitors": competitors,
+            "ai_overview_youtube": ai_overview_youtybe,
+            "ai_overview_linkedin": ai_overview_linkedin,
+            "ai_overview_reddit": ai_overview_reddit,
+            "ai_overview_forbes": ai_overview_forbes,
+            "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview
         }
         
         st.success("Analysis complete!")

@@ -27,7 +27,6 @@ SCHEMA_CHECKLIST = [
         ("Breadcrumbs", "BreadcrumbList"),
         ("FAQ", "FAQPage"),
         ("Article", "articleBody"),
-        ("Article", "articleSection"),
         ("Video", "VideoObject"),
         ("Organization", "Organization"),
         ("How-to", "HowTo"),
@@ -117,24 +116,39 @@ def extract_competitor_urls(serp_data):
                 competitor_urls.append(result["link"])
     return competitor_urls
 
-def get_ai_overview_competitors(serp_data):
-    priority_sources = {
-        "faxplus.com", "ifaxapp.com", "faxburner.com", "faxauthority.com",
-        "pandadoc.com", "cocofax.com", "wisefax.com"
-    }
+def get_ai_overview_competitors(serp_data, competitor_key):
+    competitor_directory = COMPETITOR_DIRECTORY.get(competitor_key, [])
     prioritized = []
     others = []
+    
     if "ai_overview" in serp_data:
         ai_overview = serp_data["ai_overview"]
         if "references" in ai_overview:
             for ref in ai_overview["references"]:
                 if "link" in ref:
                     trimmed_link = trim_url(ref["link"])
-                    if any(source in trimmed_link for source in priority_sources):
+                    if any(comp.lower() in trimmed_link.lower() for comp in competitor_directory):
                         prioritized.append(trimmed_link)
                     else:
                         others.append(trimmed_link)
+    
     return (prioritized + others)[:5]
+
+def get_ai_overview_othersites(serp_data, site):
+    sited = []
+    
+    if "ai_overview" in serp_data:
+        ai_overview = serp_data["ai_overview"]
+        if "references" in ai_overview:
+            for ref in ai_overview["references"]:
+                if "link" in ref:
+                    trimmed_link = trim_url(ref["link"])
+                    
+                    # Check if site name appears in the domain of the link
+                    if site.lower() in trimmed_link.lower():
+                        sited.append(trimmed_link)
+    
+    return sited[:5]
 
 def get_ai_overview_content(serp_data):
     content_lines = []
@@ -168,25 +182,40 @@ def get_ai_overview_content(serp_data):
 def get_ai_overview_competitors_content(serp_response, domain):
     ai_overview = serp_response.get("ai_overview", {})
     competitors = []
-
-    # Get competitors for this domain
     domain_competitors = COMPETITOR_DIRECTORY.get(domain, [])  # Fetch competitors for the domain
-
-    if "text_blocks" in ai_overview:
-        for block in ai_overview["text_blocks"]:
-            if "snippet" in block:
-                text = block["snippet"]
+    
+    if "references" in ai_overview:
+        reference_map = {ref.get("source"): ref for ref in ai_overview["references"]}
+        
+        for competitor in domain_competitors:
+            if competitor in reference_map:
+                competitor_ref = reference_map[competitor]
+                competitor_index = competitor_ref.get("index")
+                competitor_link = competitor_ref.get("link", "")
                 
-                # Check if relevant competitors are mentioned
-                for competitor in domain_competitors:
-                    if competitor in text:
-                        competitors.append({
-                            "name": competitor,
-                            "content": text,  # The part where the competitor is mentioned
-                            "source": ai_overview.get("references", [{}])[0].get("link", "")
-                        })
-
+                if "text_blocks" in ai_overview:
+                    for block in ai_overview["text_blocks"]:
+                        if "reference_indexes" in block and competitor_index in block["reference_indexes"]:
+                            competitors.append({
+                                "name": competitor,
+                                "content": block.get("snippet", ""),
+                                "source": competitor_link
+                            })
     return competitors
+
+def get_ai_overview_questions(serp_data):
+    related_questions = serp_data.get("related_questions", [])
+    ai_questions = []
+
+    for question_data in related_questions:
+        if question_data.get("title") == "AI Overview":
+            ai_questions.append({
+                "question": question_data.get("question"),
+                "content": question_data.get("list", []),  # Some AI Overviews use a list format
+                "link": question_data.get("link"),
+            })
+
+    return ai_questions
 
 def flatten_schema(schema_item):
     if isinstance(schema_item, list):
