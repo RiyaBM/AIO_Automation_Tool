@@ -132,7 +132,7 @@ def get_ai_overview_competitors(serp_data, competitor_key):
                     else:
                         others.append(trimmed_link)
     
-    return (prioritized + others)[:5]
+    return (prioritized + others)
 
 def get_ai_overview_othersites(serp_data, site):
     sited = []
@@ -358,6 +358,11 @@ def add_hyperlink(paragraph, url, text):
     hyperlink = OxmlElement('w:hyperlink')
     hyperlink.set(qn('r:id'), r_id)
     new_run = OxmlElement('w:r')
+    rPr = OxmlElement("w:rPr")
+    u = OxmlElement("w:u")
+    u.set("w:val", "single")
+    rPr.append(u)
+    new_run.append(rPr)
     new_run_text = OxmlElement('w:t')
     new_run_text.text = text
     new_run.append(new_run_text)

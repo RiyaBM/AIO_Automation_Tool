@@ -4,6 +4,10 @@ from docx.opc.constants import RELATIONSHIP_TYPE
 from utils import get_serp_results, extract_domain, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, rank_titles_by_semantic_similarity, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 
+SOCIAL_SITES = ["youtube", "linkedin", "reddit", "quora"]
+POPULAR_SITES = ["forbes", "pcmag", "techradar", "businessinsider", "techrepublic", "lifewire", "nytimes", "itpro", "macworld", "zdnet", "thectoclub", "techimply"]
+REVIEW_SITES = ["gartner", "trustpilot", "crowdreviews", "capterra", "clutch", "softwarereviews", "softwaresuggest", "g2"]
+
 # -------------------------------
 # Streamlit UI Integration
 # -------------------------------
@@ -12,6 +16,9 @@ st.set_page_config(page_title="SEO AI Analysis Report Generator", layout="wide")
 
 st.title("SEO AI Analysis Report Generator")
 
+social_ai_overviews = {}
+popular_ai_overviews = {}
+review_ai_overviews = {}
 # User inputs for analysis
 with st.form("analysis_form"):
     st.markdown("### Enter the following details to run the full SEO analysis:")
@@ -37,11 +44,12 @@ if submitted:
         ai_sources_in_organic_count = sum(1 for source in ai_overview_competitors if source in competitor_urls_first20)
         ai_overview_content = get_ai_overview_content(serp_data)
         competitors = get_ai_overview_competitors_content(serp_data, domain)
-        ai_overview_youtybe = get_ai_overview_othersites(serp_data, "youtube")
-        ai_overview_linkedin = get_ai_overview_othersites(serp_data, "linkedin")
-        ai_overview_reddit = get_ai_overview_othersites(serp_data, "reddit")
-        ai_overview_forbes = get_ai_overview_othersites(serp_data, "forbes")
-        ai_overview_pcmag = get_ai_overview_othersites(serp_data, "pcmag")
+        for site in SOCIAL_SITES:
+            social_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
+        for site in POPULAR_SITES:
+            popular_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
+        for site in REVIEW_SITES:
+            review_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
         people_also_ask_ai_overview = get_ai_overview_questions(serp_data)
         st.info("Analyzing target URL content...")
         content_data = analyze_target_content(target_url, serp_data)
@@ -96,10 +104,9 @@ if submitted:
             "ranked_linkedin_titles": ranked_linkedin_titles,
             "ranked_reddit_titles": ranked_reddit_titles,
             "competitors": competitors,
-            "ai_overview_youtube": ai_overview_youtybe,
-            "ai_overview_linkedin": ai_overview_linkedin,
-            "ai_overview_reddit": ai_overview_reddit,
-            "ai_overview_forbes": ai_overview_forbes,
+            "social_ai_overview_sites": social_ai_overviews,
+            "popular_ai_overview_sites": popular_ai_overviews,
+            "review_ai_overview_sites": review_ai_overviews,
             "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview
         }
         

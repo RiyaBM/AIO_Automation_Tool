@@ -50,7 +50,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     ai_content = data.get("ai_overview_content", "")
     for line in ai_content.split("\n"):
         document.add_paragraph(line)
-    document.add_heading("Relevant 5 Pages from AI Overview Sources", level=2)
+    document.add_heading("All AI Overview Sources", level=2)
     if data.get("ai_overview_competitors"):
         for url in data.get("ai_overview_competitors"):
             p = document.add_paragraph(style="List Bullet")
@@ -59,41 +59,54 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
         document.add_paragraph("No AI Overview Competitors found.")
 
     document.add_heading("Other Pages from AI Overview Sources", level=3)
-    document.add_heading("Forbes:", level=4)
-    if data.get("ai_overview_forbes"):
-        for url in data.get("ai_overview_forbes"):
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
+
+    if data.get("social_ai_overview_sites") and any(data["social_ai_overview_sites"].values()):
+        document.add_heading("Social Sites:", level=4)
+        table = document.add_table(rows=1, cols=2)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Site"
+        hdr_cells[1].text = "URL"
+        
+        for site, urls in data.get("social_ai_overview_sites").items():
+            for url in urls:
+                row_cells = table.add_row().cells
+                row_cells[0].text = site.capitalize()
+                row_cells[1].text = f'\u2022 {url}'
     else:
-        document.add_paragraph("No Forbes pages found.")
-    document.add_heading("PCMag:", level=4)
-    if data.get("ai_overview_pcmag"):
-        for url in data.get("ai_overview_pcmag"):
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
+        document.add_heading("No Social sites found on AI Overview", level=4)
+
+    if data.get("popular_ai_overview_sites") and any(data["popular_ai_overview_sites"].values()):
+        document.add_heading("3rd Party Popular Sites:", level=4)
+        table = document.add_table(rows=1, cols=2)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Site"
+        hdr_cells[1].text = "URL"
+        
+        for site, urls in data.get("popular_ai_overview_sites").items():
+            for url in urls:
+                row_cells = table.add_row().cells
+                row_cells[0].text = site.capitalize()
+                row_cells[1].text = f'\u2022 {url}'
     else:
-        document.add_paragraph("No PCMag pages found.")
-    document.add_heading("YouTybe:", level=4)
-    if data.get("ai_overview_youtube"):
-        for url in data.get("ai_overview_youtube"):
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
+        document.add_heading("No Popular sites found on AI Overview", level=4)
+
+    if data.get("review_ai_overview_sites") and any(data["review_ai_overview_sites"].values()):
+        document.add_heading("Review Sites:", level=4)
+        table = document.add_table(rows=1, cols=2)
+        table.style = 'Table Grid'
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = "Site"
+        hdr_cells[1].text = "URL"
+        
+        for site, urls in data.get("review_ai_overview_sites").items():
+            for url in urls:
+                row_cells = table.add_row().cells
+                row_cells[0].text = site.capitalize()
+                row_cells[1].text = f'\u2022 {url}'
     else:
-        document.add_paragraph("No YouTube videos found.")
-    document.add_heading("Linkedin:", level=4)
-    if data.get("ai_overview_linkedin"):
-        for url in data.get("ai_overview_linkedin"):
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
-    else:
-        document.add_paragraph("No LinkedIn pages found.")
-    document.add_heading("Reddit:", level=4)
-    if data.get("ai_overview_reddit"):
-        for url in data.get("ai_overview_reddit"):
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
-    else:
-        document.add_paragraph("No Reddit pages found.")
+        document.add_heading("No Review sites found on AI Overview", level=4)
 
     p = document.add_paragraph()
     p.add_run("Number of AI Sources in Organic Search (first 20): ").bold = True
@@ -230,6 +243,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             # Process multiple hyperlinks correctly
             relevant_text = channel.get("relevant", "")
             p = row_cells[1].paragraphs[0]
+            p.style = "List Bullet"
             
             # Extracting links and titles properly
             if "<a href=" in relevant_text:
@@ -239,7 +253,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
                 for idx, (url, title) in enumerate(links):
                     add_hyperlink(p, url, title)
                     if idx < len(links) - 1:
-                        p.add_run("\n")  # Add line break between links
+                        p.add_run("\n\n")  # Add line break between links
             else:
                 p.add_run(relevant_text)  # If no links, just add plain text
             
