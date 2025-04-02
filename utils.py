@@ -10,6 +10,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from sentence_transformers import SentenceTransformer, util
 from dotenv import load_dotenv
+from docx.oxml.ns import qn
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -52,8 +53,13 @@ def extract_ai_overview_headers(serp_data):
         for block in serp_data["ai_overview"]["text_blocks"]:
             if block.get("type") == "paragraph":
                 snippet = block.get("snippet", "").strip()
-                if snippet.endswith(":"):
+                if snippet.endswith(":") or snippet.istitle():
                     headers.append(snippet.rstrip(":").strip())
+            elif block.get("type") == "list":
+                for item in block.get("list", []):
+                    title = item.get("title", "").strip()
+                    if title:
+                        headers.append(title.rstrip(":").strip())
     return headers
 
 def compare_headers(page_headers, ai_overview_headers):
@@ -360,7 +366,7 @@ def add_hyperlink(paragraph, url, text):
     new_run = OxmlElement('w:r')
     rPr = OxmlElement("w:rPr")
     u = OxmlElement("w:u")
-    u.set("w:val", "single")
+    u.set(qn("w:val"), "single")  # Properly namespaced
     rPr.append(u)
     new_run.append(rPr)
     new_run_text = OxmlElement('w:t')

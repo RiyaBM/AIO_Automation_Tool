@@ -51,6 +51,7 @@ if submitted:
         for site in REVIEW_SITES:
             review_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
         people_also_ask_ai_overview = get_ai_overview_questions(serp_data)
+
         st.info("Analyzing target URL content...")
         content_data = analyze_target_content(target_url, serp_data)
         
