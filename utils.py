@@ -47,8 +47,7 @@ YOUTUBE_CHANNEL = {
     "efax": "@eFax", "splashtop": "@SplashtopInc", "fortinet": "@fortinet"
 }
 
-import chromedriver_autoinstaller
-chromedriver_autoinstaller.install()
+CHROMEDRIVER_PATH = "/usr/bin/chromedriver"
 
 # -------------------------------
 # Utility and Analysis Functions
@@ -317,29 +316,26 @@ def get_embedded_videos(soup):
     return videos
 
 def get_embedded_videos_with_selenium(url):
-    # Configure Selenium to use Chromium
     chrome_options = Options()
     chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium
-    chrome_options.add_argument("--headless")  # Run in headless mode
+    chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    # Use WebDriver Manager to install the correct chromedriver version
-    service = Service(ChromeDriverManager().install())
+    service = Service("/usr/bin/chromedriver")  # Use manually installed chromedriver
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     driver.get(url)
-    time.sleep(5)  # Wait for JavaScript to load
+    time.sleep(5)  # Allow JavaScript to load
 
-    # Get fully rendered HTML
+    # Extract video elements
     soup = BeautifulSoup(driver.page_source, "html.parser")
-
-    videos = []
-    for el in soup.find_all(["iframe", "embed", "video"]):
-        video_src = el.get("src") or el.get("data-src") or el.get("poster")
-        if video_src and any(domain in video_src for domain in ["youtube", "vimeo", "wistia"]):
-            videos.append({"tag": el.name, "src": video_src})
+    videos = [
+        {"tag": el.name, "src": el.get("src") or el.get("data-src") or el.get("poster")}
+        for el in soup.find_all(["iframe", "embed", "video"])
+        if el.get("src") and any(domain in el.get("src") for domain in ["youtube", "vimeo", "wistia"])
+    ]
 
     driver.quit()
     return videos
