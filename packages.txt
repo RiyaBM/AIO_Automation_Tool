@@ -1,2 +1,3 @@
 wkhtmltopdf
-google-chrome-stable
+chromium
+chromium-driver

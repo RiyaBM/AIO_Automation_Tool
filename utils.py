@@ -15,6 +15,7 @@ from selenium import webdriver
 from selenium.webdriver.chrome.service import Service
 from selenium.webdriver.chrome.options import Options
 import time
+from webdriver_manager.chrome import ChromeDriverManager
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -316,17 +317,20 @@ def get_embedded_videos(soup):
     return videos
 
 def get_embedded_videos_with_selenium(url):
-    # Set up Selenium with headless mode
+    # Configure Selenium to use Chromium
     chrome_options = Options()
-    chrome_options.add_argument("--headless")
+    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium
+    chrome_options.add_argument("--headless")  # Run in headless mode
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
 
-    service = Service("C:\\Users\\riyab\\anaconda3\\lib\\site-packages\\chromedriver_autoinstaller\\135\\chromedriver.exe")  # Adjust path to chromedriver
+    # Use WebDriver Manager to install the correct chromedriver version
+    service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     driver.get(url)
-    time.sleep(5)  # Wait for JavaScript to load (increase if needed)
+    time.sleep(5)  # Wait for JavaScript to load
 
     # Get fully rendered HTML
     soup = BeautifulSoup(driver.page_source, "html.parser")
