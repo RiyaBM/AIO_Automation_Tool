@@ -6,3 +6,5 @@ pdfkit
 jinja2
 sentence-transformers
 python-dotenv
+selenium
+chromedriver-autoinstaller
