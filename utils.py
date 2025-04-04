@@ -45,6 +45,10 @@ COMPETITOR_DIRECTORY = {
 YOUTUBE_CHANNEL = {
     "efax": "@eFax", "splashtop": "@SplashtopInc", "fortinet": "@fortinet"
 }
+
+import chromedriver_autoinstaller
+chromedriver_autoinstaller.install()
+
 # -------------------------------
 # Utility and Analysis Functions
 # -------------------------------
@@ -54,6 +58,20 @@ def is_similar(a, b, threshold=0.8):
 
 def trim_url(url):
     return url.split('#')[0] if url else url
+
+def extract_domain(url):
+    parsed_url = urlparse(url)
+    domain_parts = parsed_url.netloc.split(".")
+    return domain_parts[-2] if len(domain_parts) > 2 else domain_parts[0]
+
+def fetch_page_content(url):
+    try:
+        response = requests.get(url, timeout=10)
+        response.raise_for_status()
+        return response.text
+    except requests.RequestException as e:
+        print(f"Error fetching URL: {e}")
+        return None
 
 def extract_ai_overview_headers(serp_data):
     headers = []
@@ -78,10 +96,7 @@ def compare_headers(page_headers, ai_overview_headers):
             missing.append(ai_header)
     return missing
 
-def extract_domain(url):
-    parsed_url = urlparse(url)
-    domain_parts = parsed_url.netloc.split(".")
-    return domain_parts[-2] if len(domain_parts) > 2 else domain_parts[0]
+
 
 def check_domain_in_ai_overview(serp_data, domain, url):
     domain_found = False
@@ -251,14 +266,7 @@ def schema_implemented(schema_data, schema_type):
                     return True
     return False
 
-def fetch_page_content(url):
-    try:
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.text
-    except requests.RequestException as e:
-        print(f"Error fetching URL: {e}")
-        return None
+
 
 def build_schema_table(schema_data, url):
     
@@ -314,7 +322,7 @@ def get_embedded_videos_with_selenium(url):
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
 
-    service = Service("chromedriver")  # Adjust path to chromedriver
+    service = Service("C:\\Users\\riyab\\anaconda3\\lib\\site-packages\\chromedriver_autoinstaller\\135\\chromedriver.exe")  # Adjust path to chromedriver
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     driver.get(url)
