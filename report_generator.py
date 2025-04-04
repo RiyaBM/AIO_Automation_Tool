@@ -183,6 +183,47 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             row_cells[1].text = image.get("alt", "")
     else:
         document.add_paragraph("No images found.")
+
+    document.add_heading("Videos Embeded on Page", level = 3)
+    if data.get("content_analysis", {}).get("videos"):
+        tbl = document.add_table(rows=1, cols=3)
+        tbl.style = 'Table Grid'
+        hdr_cells = tbl.rows[0].cells
+        hdr_cells[0].text = "Video"
+        hdr_cells[1].text = "Source"
+        hdr_cells[2].text = "Remarks"
+        for row in data["content_analysis"]["videos"]:
+            row_cells = tbl.add_row().cells
+            row_cells[0].text = row.get("tag", "")
+            row_cells[1].text = row.get("src", "")
+            row_cells[2].text = "It is good practice to add timestamps for key moments in the description."
+    else:
+        document.add_paragraph("No video found on page.")
+    
+    document.add_heading("Relevant Videos on Youtube Channel", level = 3)
+    if data.get("relevant_video"):
+        tbl = document.add_table(rows=1, cols=2)
+        tbl.style = 'Table Grid'
+        hdr_cells = tbl.rows[0].cells
+        hdr_cells[0].text = "Video"
+        hdr_cells[1].text = "Suggestion"
+        
+        # Check if relevant_video is a list or a single item.
+        relevant_video = data["relevant_video"]
+        if isinstance(relevant_video, list):
+            items = relevant_video
+        else:
+            # Wrap the non-list value in a list.
+            items = [relevant_video]
+        
+        for item in items:
+            row_cells = tbl.add_row().cells
+            row_cells[0].text = str(item)
+            row_cells[1].text = "Embed this most relevant video on page."
+    else:
+        document.add_paragraph("There is no relevant video on official channel.")
+        document.add_paragraph("Create a video for this topic.")
+
     document.add_heading("Schema Markup", level=3)
     if data.get("content_analysis", {}).get("schema_table"):
         tbl = document.add_table(rows=1, cols=3)

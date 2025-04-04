@@ -11,6 +11,10 @@ from docx.oxml.ns import qn
 from sentence_transformers import SentenceTransformer, util
 from dotenv import load_dotenv
 from docx.oxml.ns import qn
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.chrome.options import Options
+import time
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -36,6 +40,10 @@ SCHEMA_CHECKLIST = [
 COMPETITOR_DIRECTORY = {
     "efax": ["Fax.Plus", "CocoFax", "eFax", "iFax", "FaxBurner"],
     "splashtop": ["TeamViewer", "AnyDesk", "ManageEngine", "BeyondTrust", "GoTo", "Splashtop"]
+}
+
+YOUTUBE_CHANNEL = {
+    "efax": "@eFax", "splashtop": "@SplashtopInc", "fortinet": "@fortinet"
 }
 # -------------------------------
 # Utility and Analysis Functions
@@ -283,11 +291,67 @@ def get_headers_and_images_in_range(soup):
         elif el.name == "img":
             src = el.get("src", "").lower()
             alt = el.get("alt", "").lower()
-            if "icon" in src or "favicon" in src or "icon" in alt:
+            if not src.startswith("http") or "icon" in src or "favicon" in src or "icon" in alt:
                 continue
             if found_first_h1 and not reached_faq:
                 images.append({"src": el.get("src", ""), "alt": el.get("alt", "")})
     return headers, images
+
+# Function to check for embedded videos
+def get_embedded_videos(soup):
+    videos = []
+    for el in soup.find_all(["iframe", "embed", "video"]):
+        video_src = el.get("src") or el.get("data-src") or el.get("poster")
+        # Convert video_src to lowercase for a case-insensitive check
+        if video_src and any(domain in video_src.lower() for domain in ["youtube", "vimeo", "wistia"]):
+            videos.append({"tag": el.name, "src": video_src})
+    return videos
+
+def get_embedded_videos_with_selenium(url):
+    # Set up Selenium with headless mode
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--disable-gpu")
+    chrome_options.add_argument("--no-sandbox")
+
+    service = Service("chromedriver")  # Adjust path to chromedriver
+    driver = webdriver.Chrome(service=service, options=chrome_options)
+
+    driver.get(url)
+    time.sleep(5)  # Wait for JavaScript to load (increase if needed)
+
+    # Get fully rendered HTML
+    soup = BeautifulSoup(driver.page_source, "html.parser")
+
+    videos = []
+    for el in soup.find_all(["iframe", "embed", "video"]):
+        video_src = el.get("src") or el.get("data-src") or el.get("poster")
+        if video_src and any(domain in video_src for domain in ["youtube", "vimeo", "wistia"]):
+            videos.append({"tag": el.name, "src": video_src})
+
+    driver.quit()
+    return videos
+
+def search_youtube_video(keyword, domain, serp_api_key=None):
+    yt_channel = YOUTUBE_CHANNEL.get(domain, domain)  # Use the mapped channel or fallback to domain
+    query = f"https://www.youtube.com/{yt_channel} {keyword}"
+    
+    search_url = f"https://serpapi.com/search.json?engine=youtube&search_query={query}&api_key={serp_api_key}"
+    
+    try:
+        response = requests.get(search_url)
+        response.raise_for_status()
+        data = response.json()
+
+        # Extract the first video result
+        if "video_results" in data and data["video_results"]:
+            top_video = data["video_results"][0]
+            return f"{top_video['title']}: {top_video['link']}"
+        else:
+            return "No relevant video found."
+    
+    except requests.RequestException as e:
+        return f"Error fetching YouTube video: {e}"
 
 def analyze_target_content(target_url, serp_data):
     response = requests.get(target_url, headers=HEADERS)
@@ -297,6 +361,7 @@ def analyze_target_content(target_url, serp_data):
                 "missing_headers": [], "images": [], "schema_table": []}
     soup = BeautifulSoup(response.text, "html.parser")
     page_headers, images_in_range = get_headers_and_images_in_range(soup)
+    videos_in_range = get_embedded_videos_with_selenium(target_url)
     schema_scripts = soup.find_all("script", type="application/ld+json")
     schema_data = []
     for script in schema_scripts:
@@ -309,7 +374,7 @@ def analyze_target_content(target_url, serp_data):
     ai_overview_headers = extract_ai_overview_headers(serp_data)
     missing_headers = compare_headers(page_headers, ai_overview_headers)
     return {"headers": page_headers, "missing_headers": missing_headers,
-            "images": images_in_range, "schema_table": schema_table}
+            "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
 
 def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
     query = f"site:{site} {keyword}"

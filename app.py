@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, rank_titles_by_semantic_similarity, get_youtube_results, get_ai_overview_competitors_content
+from utils import get_serp_results, extract_domain, search_youtube_video, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, rank_titles_by_semantic_similarity, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 
 SOCIAL_SITES = ["youtube", "linkedin", "reddit", "quora"]
@@ -58,6 +58,7 @@ if submitted:
         st.info("Fetching social results from LinkedIn and Reddit...")
         linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=SERPAPI_KEY)
         reddit_results = get_social_results(keyword, "reddit.com", limit_max=5, serp_api_key=SERPAPI_KEY)
+        relevant_video = search_youtube_video(keyword, domain, serp_api_key = SERPAPI_KEY)
         linkedin_titles = [r["title"] for r in linkedin_results]
         reddit_titles = [r["title"] for r in reddit_results]
         ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.75)
@@ -108,7 +109,8 @@ if submitted:
             "social_ai_overview_sites": social_ai_overviews,
             "popular_ai_overview_sites": popular_ai_overviews,
             "review_ai_overview_sites": review_ai_overviews,
-            "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview
+            "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview,
+            "relevant_video": relevant_video
         }
         
         st.success("Analysis complete!")
