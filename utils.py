@@ -14,6 +14,7 @@ from docx.oxml.ns import qn
 import time
 from requests_html import HTMLSession
 import asyncio
+import os
 # Load environment variables from .env if present
 load_dotenv()
 
@@ -388,11 +389,19 @@ def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
                 break
     return results
 
-def load_model():
-    return SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
-
 def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
-    model = load_model()
+
+    # Read the secret
+    hf_token = st.secrets["HUGGINGFACE_HUB_TOKEN"]
+
+    if not hf_token:
+        st.error("Hugging Face token not found in secrets.toml")
+        return []
+
+    # Set it for Hugging Face
+    os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
+
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
     title_embeddings = model.encode(titles, convert_to_tensor=True)
     cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
