@@ -9,3 +9,4 @@ python-dotenv
 requests-html
 lxml_html_clean
 torch
+transformers
