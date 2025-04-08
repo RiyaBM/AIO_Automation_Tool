@@ -59,13 +59,6 @@ if submitted:
         
         st.info("Fetching social results from LinkedIn and Reddit...")
 
-        try:
-            r = requests.get("https://huggingface.co", timeout=5)
-            st.success("Internet is working! ✅")
-        except Exception as e:
-            st.error(f"No internet: {e}")
-
-
         linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=SERPAPI_KEY)
         reddit_results = get_social_results(keyword, "reddit.com", limit_max=5, serp_api_key=SERPAPI_KEY)
         relevant_video = search_youtube_video(keyword, domain, serp_api_key = SERPAPI_KEY)
