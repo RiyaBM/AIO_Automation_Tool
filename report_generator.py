@@ -72,7 +72,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             add_hyperlink(p, url, url)
 
             # Add position to second cell
-            row_cells[1].text = str(position) if position is not None else "N/A"
+            row_cells[1].text = str(position) if position is not None else "> 50"
     else:
         document.add_paragraph("No AI Overview Competitors found.")
 
