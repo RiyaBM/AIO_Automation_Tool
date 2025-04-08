@@ -389,25 +389,25 @@ def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
                 break
     return results
 
-def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
+# def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
 
-    # Read the secret
-    hf_token = st.secrets["HUGGINGFACE_HUB_TOKEN"]
+#     # Read the secret
+#     hf_token = st.secrets["HUGGINGFACE_HUB_TOKEN"]
 
-    if not hf_token:
-        st.error("Hugging Face token not found in secrets.toml")
-        return []
+#     if not hf_token:
+#         st.error("Hugging Face token not found in secrets.toml")
+#         return []
 
-    # Set it for Hugging Face
-    os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
+#     # Set it for Hugging Face
+#     os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
 
-    model = SentenceTransformer('all-MiniLM-L6-v2')
-    query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
-    title_embeddings = model.encode(titles, convert_to_tensor=True)
-    cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
-    cosine_scores = cosine_scores.cpu().numpy().flatten()
-    ranked_titles = [(titles[i], float(cosine_scores[i])) for i in np.argsort(cosine_scores)[::-1]]
-    return [item for item in ranked_titles if item[1] > threshold]
+#     model = SentenceTransformer('all-MiniLM-L6-v2')
+#     query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
+#     title_embeddings = model.encode(titles, convert_to_tensor=True)
+#     cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
+#     cosine_scores = cosine_scores.cpu().numpy().flatten()
+#     ranked_titles = [(titles[i], float(cosine_scores[i])) for i in np.argsort(cosine_scores)[::-1]]
+#     return [item for item in ranked_titles if item[1] > threshold]
 
 def get_youtube_results(keyword, limit_max=5, serp_api_key=None):
     query = f"site:youtube.com {keyword}"

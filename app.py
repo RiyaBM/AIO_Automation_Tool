@@ -70,23 +70,25 @@ if submitted:
         relevant_video = search_youtube_video(keyword, domain, serp_api_key = SERPAPI_KEY)
         linkedin_titles = [r["title"] for r in linkedin_results]
         reddit_titles = [r["title"] for r in reddit_results]
-        ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.75)
-        ranked_reddit_titles = rank_titles_by_semantic_similarity(keyword, reddit_titles, threshold=0.75)
+        # ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.75)
+        # ranked_reddit_titles = rank_titles_by_semantic_similarity(keyword, reddit_titles, threshold=0.75)
         social_channels = [
             {
                 "channel": "LinkedIn",
-                "relevant": "<br><br>".join(
-                    [f"<a href='{linkedin_results[i]['link']}' target='_blank'>{title}</a><br><small>{linkedin_results[i]['link']}</small>"
-                     for i, (title, _) in enumerate(ranked_linkedin_titles)]
-                ) if ranked_linkedin_titles else "No relevant LinkedIn discussions found.",
+                "relevant": "No relevant LinkedIn discussions found.",
+                # "relevant": "<br><br>".join(
+                #     [f"<a href='{linkedin_results[i]['link']}' target='_blank'>{title}</a><br><small>{linkedin_results[i]['link']}</small>"
+                #      for i, (title, _) in enumerate(ranked_linkedin_titles)]
+                # ) if ranked_linkedin_titles else "No relevant LinkedIn discussions found.",
                 "suggestions": "Create an official LinkedIn presence and engage in relevant discussions."
             },
             {
                 "channel": "Reddit",
-                "relevant": "<br><br>".join(
-                    [f"<a href='{reddit_results[i]['link']}' target='_blank'>{title}</a><br><small>{reddit_results[i]['link']}</small>"
-                     for i, (title, _) in enumerate(ranked_reddit_titles)]
-                ) if ranked_reddit_titles else "No relevant Reddit discussions found.",
+                "relevant": "No relevant Reddit discussions found.",
+                # "relevant": "<br><br>".join(
+                #     [f"<a href='{reddit_results[i]['link']}' target='_blank'>{title}</a><br><small>{reddit_results[i]['link']}</small>"
+                #      for i, (title, _) in enumerate(ranked_reddit_titles)]
+                # ) if ranked_reddit_titles else "No relevant Reddit discussions found.",
                 "suggestions": "Participate in Reddit discussions to boost engagement."
             }
         ]
