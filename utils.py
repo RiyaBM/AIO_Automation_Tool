@@ -389,7 +389,7 @@ def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
     return results
 
 def load_model():
-    return SentenceTransformer("all-MiniLM-L6-v2")
+    return SentenceTransformer('sentence-transformers/all-MiniLM-L6-v2')
 
 def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
     model = load_model()
