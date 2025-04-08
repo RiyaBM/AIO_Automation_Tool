@@ -390,7 +390,7 @@ def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
     return results
 
 def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
-    model = SentenceTransformer('./models/all-MiniLM-L6-v2')
+    model = SentenceTransformer('all-MiniLM-L6-v2')
     query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
     title_embeddings = model.encode(titles, convert_to_tensor=True)
     cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
