@@ -68,7 +68,7 @@ def fetch_page_content(url):
         response.raise_for_status()
         return response.text
     except requests.RequestException as e:
-        print(f"Error fetching URL: {e}")
+        st.info(f"Error fetching URL: {e}")
         return None
 
 def extract_ai_overview_headers(serp_data):
@@ -314,7 +314,7 @@ def get_embedded_videos(url):
         asyncio.set_event_loop(loop)
         loop.run_until_complete(r.html.arender(timeout=20, sleep=2))
     except Exception as e:
-        print(f"Render failed: {e}")
+        st.info(f"Render failed: {e}")
         return []
 
     # Use BeautifulSoup for consistency with your existing code
