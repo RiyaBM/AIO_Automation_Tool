@@ -50,11 +50,29 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     ai_content = data.get("ai_overview_content", "")
     for line in ai_content.split("\n"):
         document.add_paragraph(line)
+    
     document.add_heading("All AI Overview Sources", level=2)
-    if data.get("ai_overview_competitors"):
-        for url in data.get("ai_overview_competitors"):
-            p = document.add_paragraph(style="List Bullet")
+    ai_competitors = data.get("ai_overview_competitors")
+    if ai_competitors:
+        table = document.add_table(rows=1, cols=2)
+        table.style = 'Light List'  # or use 'Table Grid' or any Word style you prefer
+
+        # Header row
+        hdr_cells = table.rows[0].cells
+        hdr_cells[0].text = 'URL'
+        hdr_cells[1].text = 'SERP Position'
+
+        for item in ai_competitors:
+            row_cells = table.add_row().cells
+            url = item.get("url")
+            position = item.get("position", "> 50")
+
+            # Add hyperlink to the first cell
+            p = row_cells[0].paragraphs[0]
             add_hyperlink(p, url, url)
+
+            # Add position to second cell
+            row_cells[1].text = str(position) if position is not None else "N/A"
     else:
         document.add_paragraph("No AI Overview Competitors found.")
 

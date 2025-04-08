@@ -154,10 +154,15 @@ def get_ai_overview_competitors(serp_data, competitor_key):
             for ref in ai_overview["references"]:
                 if "link" in ref:
                     trimmed_link = trim_url(ref["link"])
+                    position = find_domain_position_in_organic(serp_data, trimmed_link.lower())
+                    entry = {
+                        "url": trimmed_link,
+                        "position": position
+                    }
                     if any(comp.lower() in trimmed_link.lower() for comp in competitor_directory):
-                        prioritized.append(trimmed_link)
+                        prioritized.append(entry)
                     else:
-                        others.append(trimmed_link)
+                        others.append(entry)
     
     return (prioritized + others)
 
