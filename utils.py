@@ -317,13 +317,15 @@ def get_embedded_videos(soup):
 
 def get_embedded_videos_with_selenium(url):
     chrome_options = Options()
-    chrome_options.binary_location = "/usr/bin/chromium-browser"  # Use Chromium
     chrome_options.add_argument("--headless")
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--no-sandbox")
     chrome_options.add_argument("--disable-dev-shm-usage")
 
-    service = Service("/usr/bin/chromedriver")  # Use manually installed chromedriver
+    # No need to manually set binary_location unless you're customizing
+    # chrome_options.binary_location = "/usr/bin/chromium-browser"
+
+    service = Service(ChromeDriverManager().install())
     driver = webdriver.Chrome(service=service, options=chrome_options)
 
     driver.get(url)
