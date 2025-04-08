@@ -7,3 +7,4 @@ jinja2
 sentence-transformers
 python-dotenv
 requests-html
+lxml_html_clean

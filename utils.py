@@ -13,6 +13,7 @@ from dotenv import load_dotenv
 from docx.oxml.ns import qn
 import time
 from requests_html import HTMLSession
+import asyncio
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -307,8 +308,11 @@ def get_embedded_videos(url):
     session = HTMLSession()
     r = session.get(url)
 
+    # Run .render() safely for Streamlit
     try:
-        r.html.render(timeout=20, sleep=2)  # Let JS load
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(r.html.arender(timeout=20, sleep=2))
     except Exception as e:
         print(f"Render failed: {e}")
         return []
