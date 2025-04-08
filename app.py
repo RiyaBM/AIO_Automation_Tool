@@ -115,8 +115,6 @@ if submitted:
             "content_analysis": content_data,
             "social_channels": social_channels,
             "youtube_results": youtube_results,
-            "ranked_linkedin_titles": ranked_linkedin_titles,
-            "ranked_reddit_titles": ranked_reddit_titles,
             "competitors": competitors,
             "social_ai_overview_sites": social_ai_overviews,
             "popular_ai_overview_sites": popular_ai_overviews,
