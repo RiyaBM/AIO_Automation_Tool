@@ -6,7 +6,7 @@ pdfkit
 jinja2
 sentence-transformers
 python-dotenv
-requests-html
-lxml_html_clean
 torch
 transformers
+requests-html
+lxml_html_clean
