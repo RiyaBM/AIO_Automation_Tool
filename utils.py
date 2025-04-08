@@ -11,11 +11,8 @@ from docx.oxml.ns import qn
 from sentence_transformers import SentenceTransformer, util
 from dotenv import load_dotenv
 from docx.oxml.ns import qn
-from selenium import webdriver
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
 import time
-from webdriver_manager.chrome import ChromeDriverManager
+from requests_html import HTMLSession
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -306,40 +303,29 @@ def get_headers_and_images_in_range(soup):
     return headers, images
 
 # Function to check for embedded videos
-def get_embedded_videos(soup):
+def get_embedded_videos(url):
+    session = HTMLSession()
+    r = session.get(url)
+
+    try:
+        r.html.render(timeout=20, sleep=2)  # Let JS load
+    except Exception as e:
+        print(f"Render failed: {e}")
+        return []
+
+    # Use BeautifulSoup for consistency with your existing code
+    soup = BeautifulSoup(r.html.html, "html.parser")
+
+    # Extract <iframe>, <embed>, and <video> elements
     videos = []
     for el in soup.find_all(["iframe", "embed", "video"]):
-        video_src = el.get("src") or el.get("data-src") or el.get("poster")
-        # Convert video_src to lowercase for a case-insensitive check
-        if video_src and any(domain in video_src.lower() for domain in ["youtube", "vimeo", "wistia"]):
-            videos.append({"tag": el.name, "src": video_src})
-    return videos
+        src = el.get("src") or el.get("data-src") or el.get("poster")
+        if src and any(domain in src for domain in ["youtube", "vimeo", "wistia"]):
+            videos.append({
+                "tag": el.name,
+                "src": src
+            })
 
-def get_embedded_videos_with_selenium(url):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--disable-gpu")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-
-    # No need to manually set binary_location unless you're customizing
-    # chrome_options.binary_location = "/usr/bin/chromium-browser"
-
-    service = Service(ChromeDriverManager().install())
-    driver = webdriver.Chrome(service=service, options=chrome_options)
-
-    driver.get(url)
-    time.sleep(5)  # Allow JavaScript to load
-
-    # Extract video elements
-    soup = BeautifulSoup(driver.page_source, "html.parser")
-    videos = [
-        {"tag": el.name, "src": el.get("src") or el.get("data-src") or el.get("poster")}
-        for el in soup.find_all(["iframe", "embed", "video"])
-        if el.get("src") and any(domain in el.get("src") for domain in ["youtube", "vimeo", "wistia"])
-    ]
-
-    driver.quit()
     return videos
 
 def search_youtube_video(keyword, domain, serp_api_key=None):
@@ -371,7 +357,7 @@ def analyze_target_content(target_url, serp_data):
                 "missing_headers": [], "images": [], "schema_table": []}
     soup = BeautifulSoup(response.text, "html.parser")
     page_headers, images_in_range = get_headers_and_images_in_range(soup)
-    videos_in_range = get_embedded_videos_with_selenium(target_url)
+    videos_in_range = get_embedded_videos(target_url)
     schema_scripts = soup.find_all("script", type="application/ld+json")
     schema_data = []
     for script in schema_scripts:
