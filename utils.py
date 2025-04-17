@@ -181,19 +181,36 @@ def get_ai_overview_othersites(serp_data, site):
                         sited.append(trimmed_link)
     
     return sited[:5]
-
 def get_ai_overview_content(serp_data):
     content_lines = []
-    
+
     if "ai_overview" in serp_data and "text_blocks" in serp_data["ai_overview"]:
         for block in serp_data["ai_overview"]["text_blocks"]:
-            
-            if block.get("type") == "paragraph":
+            block_type = block.get("type")
+
+            if block_type == "paragraph":
                 snippet = block.get("snippet", "").strip()
                 if snippet:
                     content_lines.append(snippet)
-            
-            elif block.get("type") == "list":
+
+                # Extract video details if available
+                video = block.get("video")
+                if video:
+                    video_details = []
+                    link = video.get("link")
+                    source = video.get("source")
+                    date = video.get("date")
+
+                    if link:
+                        video_details.append(f"📺 Video Link: {link}")
+                    if source:
+                        video_details.append(f"📰 Source: {source}")
+                    if date:
+                        video_details.append(f"📅 Date: {date}")
+
+                    content_lines.extend(video_details)
+
+            elif block_type == "list":
                 list_items = block.get("list", [])
                 for item in list_items:
                     title = item.get("title", "").strip()
@@ -201,15 +218,29 @@ def get_ai_overview_content(serp_data):
                     combined = f"{title} {snippet}" if title and snippet else title or snippet
                     if combined:
                         content_lines.append(combined)
-                    
+
                     # Handle nested lists
                     if "list" in item:
                         for sub_item in item["list"]:
                             sub_snippet = sub_item.get("snippet", "").strip()
                             if sub_snippet:
                                 content_lines.append(f"- {sub_snippet}")
-    
-    return "\n\n".join(content_lines)
+
+            elif block_type == "table":
+                table_data = block.get("table", [])
+                if table_data:
+                    for row in table_data:
+                        if len(row) == 1:
+                            # Likely a section or category header
+                            content_lines.append(f"📌 {row[0]}")
+                        elif len(row) == 2:
+                            key, value = row
+                            content_lines.append(f"{key}: {value}")
+                        else:
+                            # Unexpected format
+                            content_lines.append(" | ".join(row))
+
+    return "\n".join(content_lines)
 
 def get_ai_overview_competitors_content(serp_response, domain):
     ai_overview = serp_response.get("ai_overview", {})
