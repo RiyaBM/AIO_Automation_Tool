@@ -73,17 +73,32 @@ def fetch_page_content(url):
 
 def extract_ai_overview_headers(serp_data):
     headers = []
+
     if "ai_overview" in serp_data and "text_blocks" in serp_data["ai_overview"]:
         for block in serp_data["ai_overview"]["text_blocks"]:
-            if block.get("type") == "paragraph":
+            block_type = block.get("type")
+
+            if block_type == "paragraph":
                 snippet = block.get("snippet", "").strip()
                 if snippet.endswith(":") or snippet.istitle():
                     headers.append(snippet.rstrip(":").strip())
-            elif block.get("type") == "list":
+
+            elif block_type == "list":
                 for item in block.get("list", []):
                     title = item.get("title", "").strip()
                     if title:
                         headers.append(title.rstrip(":").strip())
+
+            elif block_type == "table":
+                table_data = block.get("table", [])
+                for row in table_data:
+                    if len(row) == 1:
+                        # Likely a section header or category title
+                        headers.append(row[0].strip())
+                    elif len(row) >= 2:
+                        # The first column is typically the row header
+                        headers.append(row[0].strip())
+
     return headers
 
 def compare_headers(page_headers, ai_overview_headers):
@@ -370,8 +385,7 @@ def get_embedded_videos(url):
 
 def search_youtube_video(keyword, domain, serp_api_key=None):
     yt_channel = YOUTUBE_CHANNEL.get(domain, domain)  # Use the mapped channel or fallback to domain
-    query = f"https://www.youtube.com/{yt_channel} {keyword}"
-    
+    query = f"https://www.youtube.com/{yt_channel}/search?query={keyword}"
     search_url = f"https://serpapi.com/search.json?engine=youtube&search_query={query}&api_key={serp_api_key}"
     
     try:
