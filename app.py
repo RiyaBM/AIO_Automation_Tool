@@ -46,7 +46,7 @@ if submitted:
         ai_sources_in_organic_count = sum(1 for source in ai_overview_competitors if source in competitor_urls_first20)
         ai_overview_content = get_ai_overview_content(serp_data)
         competitors = get_ai_overview_competitors_content(serp_data, domain)
-        ai_overview_competitor_content = get_competitors_content(competitors)
+        ai_overview_competitor_content = get_competitors_content(ai_overview_competitors)
         for site in SOCIAL_SITES:
             social_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
         for site in POPULAR_SITES:

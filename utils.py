@@ -430,8 +430,8 @@ def get_competitors_content(competitors):
     competitor_content = {}
 
     for competitor in competitors:
-        url = competitor.get("source")
-        name = competitor.get("name")
+        url = competitor.get("url")
+        name = extract_domain(url).lower()
 
         videos = get_embedded_videos(url)
         response = requests.get(url, headers=HEADERS)

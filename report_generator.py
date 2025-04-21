@@ -321,7 +321,6 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
         document.add_paragraph("No social channels data found.")
         
     document.add_heading("AI Overview Competotrs Content Analysis", level=2)
-    document.add_heading("AI Overview Competotrs Content Analysis", level=2)
     if data.get("aio_competitor_content"):
         for source, content in data["aio_competitor_content"].items():
             document.add_heading(source, level=3)
@@ -353,6 +352,8 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
                     document.add_paragraph(str(row), style="List Bullet")
             else:
                 document.add_paragraph("No schema data found.", style="Italic")
+    else:
+        document.add_paragraph("No social channels data found.")
 
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
