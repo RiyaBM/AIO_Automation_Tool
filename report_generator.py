@@ -378,6 +378,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
         document.add_paragraph("No citations data found.")
 
     document.add_heading("Top SERP URLs", level=2)
+    document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
         for url in data["competitor_urls"]:
             p = document.add_paragraph(style="List Bullet")
