@@ -332,6 +332,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             images = content.get("images", [])
             if images:
                 table = document.add_table(rows=1, cols=2)
+                table.style = 'Table Grid'
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'Alt Text'
                 hdr_cells[1].text = 'Image URL'
@@ -348,6 +349,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             videos = content.get("videos", [])
             if videos:
                 table = document.add_table(rows=1, cols=2)
+                table.style = 'Table Grid'
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'Tag'
                 hdr_cells[1].text = 'Video Source'
@@ -364,6 +366,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             schema_table = content.get("schema_table", [])
             if schema_table:
                 table = document.add_table(rows=1, cols=2)
+                table.style = 'Table Grid'
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'Schema'
                 hdr_cells[1].text = 'Implemented'
@@ -377,7 +380,6 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     else:
         document.add_paragraph("No citations data found.")
 
-    document.add_heading("Top SERP URLs", level=2)
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
         for url in data["competitor_urls"]:
