@@ -333,7 +333,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
                     alt = img.get("alt", "")
                     document.add_paragraph(f'Alt: {alt}\nURL: {src}', style="List Bullet")
             else:
-                document.add_paragraph("No images found.", style="Italic")
+                document.add_paragraph("No images found.", style="BodyText")
 
             # Videos
             document.add_heading("Videos", level=4)
@@ -342,7 +342,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
                 for video in videos:
                     document.add_paragraph(f'{video["tag"].upper()} Source: {video["src"]}', style="List Bullet")
             else:
-                document.add_paragraph("No videos found.", style="Italic")
+                document.add_paragraph("No videos found.", style="BodyText")
 
             # Schema Table placeholder
             document.add_heading("Schema Table", level=4)
@@ -351,7 +351,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
                 for row in schema_table:
                     document.add_paragraph(str(row), style="List Bullet")
             else:
-                document.add_paragraph("No schema data found.", style="Italic")
+                document.add_paragraph("No schema data found.", style="BodyText")
     else:
         document.add_paragraph("No social channels data found.")
 
