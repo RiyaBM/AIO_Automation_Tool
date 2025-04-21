@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, search_youtube_video, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
+from utils import get_serp_results, extract_domain, search_youtube_video, get_competitors_content, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 import requests
 # from utils import rank_titles_by_semantic_similarity
@@ -46,6 +46,7 @@ if submitted:
         ai_sources_in_organic_count = sum(1 for source in ai_overview_competitors if source in competitor_urls_first20)
         ai_overview_content = get_ai_overview_content(serp_data)
         competitors = get_ai_overview_competitors_content(serp_data, domain)
+        ai_overview_competitor_content = get_competitors_content(competitors)
         for site in SOCIAL_SITES:
             social_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
         for site in POPULAR_SITES:
@@ -113,7 +114,8 @@ if submitted:
             "popular_ai_overview_sites": popular_ai_overviews,
             "review_ai_overview_sites": review_ai_overviews,
             "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview,
-            "relevant_video": relevant_video
+            "relevant_video": relevant_video,
+            "aio_competitor_content": ai_overview_competitor_content
         }
         
         st.success("Analysis complete!")
