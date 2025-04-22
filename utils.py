@@ -15,6 +15,7 @@ import time
 from requests_html import HTMLSession
 import asyncio
 import os
+from requests_html import HTMLSession
 # Load environment variables from .env if present
 load_dotenv()
 
@@ -355,24 +356,33 @@ def get_headers_and_images_in_range(soup):
     return headers, images
 
 # Function to check for embedded videos
+def run_async(coro):
+    try:
+        # If there's an existing loop, use it
+        loop = asyncio.get_running_loop()
+    except RuntimeError:
+        # No running loop, safe to create one
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    else:
+        # If a loop is already running (e.g., in Streamlit), use `ensure_future`
+        return asyncio.ensure_future(coro)
+
 def get_embedded_videos(url):
+
     session = HTMLSession()
     r = session.get(url)
 
-    # Run .render() safely for Streamlit
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(r.html.arender(timeout=20, sleep=2))
+        run_async(r.html.arender(timeout=20, sleep=2))
     except Exception as e:
         print(f"Render failed: {e}")
         return []
 
-    # Use BeautifulSoup for consistency with your existing code
     soup = BeautifulSoup(r.html.html, "html.parser")
-
-    # Extract <iframe>, <embed>, and <video> elements
     videos = []
+
     for el in soup.find_all(["iframe", "embed", "video"]):
         src = el.get("src") or el.get("data-src") or el.get("poster")
         if src and any(domain in src for domain in ["youtube", "vimeo", "wistia"]):
