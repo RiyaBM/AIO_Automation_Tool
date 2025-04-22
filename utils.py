@@ -355,32 +355,25 @@ def get_headers_and_images_in_range(soup):
                 images.append({"src": el.get("src", ""), "alt": el.get("alt", "")})
     return headers, images
 
-# Function to check for embedded videos
-def run_async(coro):
-    try:
-        # If there's an existing loop, use it
-        loop = asyncio.get_running_loop()
-    except RuntimeError:
-        # No running loop, safe to create one
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        return loop.run_until_complete(coro)
-    else:
-        # If a loop is already running (e.g., in Streamlit), use `ensure_future`
-        return asyncio.ensure_future(coro)
-
 def get_embedded_videos(url):
-
-    session = HTMLSession()
-    r = session.get(url)
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+        )
+    }
 
     try:
-        run_async(r.html.arender(timeout=20, sleep=2))
-    except Exception as e:
-        print(f"Render failed: {e}")
+        response = requests.get(url, headers=headers, timeout=15)
+        response.raise_for_status()
+    except requests.exceptions.Timeout:
+        print(f"[Timeout] Could not fetch: {url}")
+        return []
+    except requests.exceptions.RequestException as e:
+        print(f"[Error] Failed to fetch {url}: {e}")
         return []
 
-    soup = BeautifulSoup(r.html.html, "html.parser")
+    soup = BeautifulSoup(response.text, "html.parser")
     videos = []
 
     for el in soup.find_all(["iframe", "embed", "video"]):
