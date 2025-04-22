@@ -8,7 +8,6 @@ from docx.opc.constants import RELATIONSHIP_TYPE
 from dotenv import load_dotenv
 import shutil
 from utils import add_hyperlink
-from docx.shared import Inches
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -73,7 +72,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             add_hyperlink(p, url, url)
 
             # Add position to second cell
-            row_cells[1].text = str(position) if position is not None else "> 50"
+            row_cells[1].text = str(position) if position is not None else "N/A"
     else:
         document.add_paragraph("No AI Overview Competitors found.")
 
@@ -321,65 +320,6 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     else:
         document.add_paragraph("No social channels data found.")
         
-    document.add_heading("AI Overview Competitors Content Analysis", level=2)
-
-    if data.get("aio_competitor_content"):
-        for source, content in data["aio_competitor_content"].items():
-            document.add_heading(source, level=3)
-
-            # Images
-            document.add_heading("Images", level=4)
-            images = content.get("images", [])
-            if images:
-                table = document.add_table(rows=1, cols=2)
-                table.style = 'Table Grid'
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Alt Text'
-                hdr_cells[1].text = 'Image URL'
-
-                for img in images:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = img.get("alt", "")
-                    row_cells[1].text = img.get("src", "")
-            else:
-                document.add_paragraph("No images found.", style="BodyText")
-
-            # Videos
-            document.add_heading("Videos", level=4)
-            videos = content.get("videos", [])
-            if videos:
-                table = document.add_table(rows=1, cols=2)
-                table.style = 'Table Grid'
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Tag'
-                hdr_cells[1].text = 'Video Source'
-
-                for video in videos:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = video.get("tag", "").upper()
-                    row_cells[1].text = video.get("src", "")
-            else:
-                document.add_paragraph("No videos found.", style="BodyText")
-
-            # Schema Table
-            document.add_heading("Schema Table", level=4)
-            schema_table = content.get("schema_table", [])
-            if schema_table:
-                table = document.add_table(rows=1, cols=2)
-                table.style = 'Table Grid'
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Schema'
-                hdr_cells[1].text = 'Implemented'
-
-                for row in schema_table:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = str(row.get('schema', ''))
-                    row_cells[1].text = str(row.get('implemented', ''))
-            else:
-                document.add_paragraph("No schema data found.", style="BodyText")
-    else:
-        document.add_paragraph("No citations data found.")
-
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
         for url in data["competitor_urls"]:

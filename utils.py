@@ -15,7 +15,6 @@ import time
 from requests_html import HTMLSession
 import asyncio
 import os
-from requests_html import HTMLSession
 # Load environment variables from .env if present
 load_dotenv()
 
@@ -74,32 +73,17 @@ def fetch_page_content(url):
 
 def extract_ai_overview_headers(serp_data):
     headers = []
-
     if "ai_overview" in serp_data and "text_blocks" in serp_data["ai_overview"]:
         for block in serp_data["ai_overview"]["text_blocks"]:
-            block_type = block.get("type")
-
-            if block_type == "paragraph":
+            if block.get("type") == "paragraph":
                 snippet = block.get("snippet", "").strip()
                 if snippet.endswith(":") or snippet.istitle():
                     headers.append(snippet.rstrip(":").strip())
-
-            elif block_type == "list":
+            elif block.get("type") == "list":
                 for item in block.get("list", []):
                     title = item.get("title", "").strip()
                     if title:
                         headers.append(title.rstrip(":").strip())
-
-            elif block_type == "table":
-                table_data = block.get("table", [])
-                for row in table_data:
-                    if len(row) == 1:
-                        # Likely a section header or category title
-                        headers.append(row[0].strip())
-                    elif len(row) >= 2:
-                        # The first column is typically the row header
-                        headers.append(row[0].strip())
-
     return headers
 
 def compare_headers(page_headers, ai_overview_headers):
@@ -197,36 +181,19 @@ def get_ai_overview_othersites(serp_data, site):
                         sited.append(trimmed_link)
     
     return sited[:5]
+
 def get_ai_overview_content(serp_data):
     content_lines = []
-
+    
     if "ai_overview" in serp_data and "text_blocks" in serp_data["ai_overview"]:
         for block in serp_data["ai_overview"]["text_blocks"]:
-            block_type = block.get("type")
-
-            if block_type == "paragraph":
+            
+            if block.get("type") == "paragraph":
                 snippet = block.get("snippet", "").strip()
                 if snippet:
                     content_lines.append(snippet)
-
-                # Extract video details if available
-                video = block.get("video")
-                if video:
-                    video_details = []
-                    link = video.get("link")
-                    source = video.get("source")
-                    date = video.get("date")
-
-                    if link:
-                        video_details.append(f"📺 Video Link: {link}")
-                    if source:
-                        video_details.append(f"📰 Source: {source}")
-                    if date:
-                        video_details.append(f"📅 Date: {date}")
-
-                    content_lines.extend(video_details)
-
-            elif block_type == "list":
+            
+            elif block.get("type") == "list":
                 list_items = block.get("list", [])
                 for item in list_items:
                     title = item.get("title", "").strip()
@@ -234,29 +201,15 @@ def get_ai_overview_content(serp_data):
                     combined = f"{title} {snippet}" if title and snippet else title or snippet
                     if combined:
                         content_lines.append(combined)
-
+                    
                     # Handle nested lists
                     if "list" in item:
                         for sub_item in item["list"]:
                             sub_snippet = sub_item.get("snippet", "").strip()
                             if sub_snippet:
                                 content_lines.append(f"- {sub_snippet}")
-
-            elif block_type == "table":
-                table_data = block.get("table", [])
-                if table_data:
-                    for row in table_data:
-                        if len(row) == 1:
-                            # Likely a section or category header
-                            content_lines.append(f"📌 {row[0]}")
-                        elif len(row) == 2:
-                            key, value = row
-                            content_lines.append(f"{key}: {value}")
-                        else:
-                            # Unexpected format
-                            content_lines.append(" | ".join(row))
-
-    return "\n".join(content_lines)
+    
+    return "\n\n".join(content_lines)
 
 def get_ai_overview_competitors_content(serp_response, domain):
     ai_overview = serp_response.get("ai_overview", {})
@@ -355,27 +308,25 @@ def get_headers_and_images_in_range(soup):
                 images.append({"src": el.get("src", ""), "alt": el.get("alt", "")})
     return headers, images
 
+# Function to check for embedded videos
 def get_embedded_videos(url):
-    headers = {
-        "User-Agent": (
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-            "(KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
-        )
-    }
+    session = HTMLSession()
+    r = session.get(url)
 
+    # Run .render() safely for Streamlit
     try:
-        response = requests.get(url, headers=headers, timeout=15)
-        response.raise_for_status()
-    except requests.exceptions.Timeout:
-        print(f"[Timeout] Could not fetch: {url}")
-        return []
-    except requests.exceptions.RequestException as e:
-        print(f"[Error] Failed to fetch {url}: {e}")
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(r.html.arender(timeout=20, sleep=2))
+    except Exception as e:
+        print(f"Render failed: {e}")
         return []
 
-    soup = BeautifulSoup(response.text, "html.parser")
+    # Use BeautifulSoup for consistency with your existing code
+    soup = BeautifulSoup(r.html.html, "html.parser")
+
+    # Extract <iframe>, <embed>, and <video> elements
     videos = []
-
     for el in soup.find_all(["iframe", "embed", "video"]):
         src = el.get("src") or el.get("data-src") or el.get("poster")
         if src and any(domain in src for domain in ["youtube", "vimeo", "wistia"]):
@@ -388,7 +339,8 @@ def get_embedded_videos(url):
 
 def search_youtube_video(keyword, domain, serp_api_key=None):
     yt_channel = YOUTUBE_CHANNEL.get(domain, domain)  # Use the mapped channel or fallback to domain
-    query = f"https://www.youtube.com/{yt_channel}/search?query={keyword}"
+    query = f"https://www.youtube.com/{yt_channel} {keyword}"
+    
     search_url = f"https://serpapi.com/search.json?engine=youtube&search_query={query}&api_key={serp_api_key}"
     
     try:
@@ -428,51 +380,6 @@ def analyze_target_content(target_url, serp_data):
     missing_headers = compare_headers(page_headers, ai_overview_headers)
     return {"headers": page_headers, "missing_headers": missing_headers,
             "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
-
-def get_competitors_content(competitors):
-    competitor_content = {}
-
-    for competitor in competitors:
-        url = competitor.get("url")
-        name = extract_domain(url).lower()
-
-        videos = get_embedded_videos(url)
-        response = requests.get(url, headers=HEADERS)
-
-        if response.status_code != 200:
-            st.error(f"Warning: Received status code {response.status_code} from {url}.")
-            competitor_content[name] = {
-                "headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
-                "missing_headers": [],
-                "images": [],
-                "videos": [],
-                "schema_table": []
-            }
-            continue  # Skip to the next competitor
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        headers, images = get_headers_and_images_in_range(soup)
-
-        schema_scripts = soup.find_all("script", type="application/ld+json")
-        schema_data = []
-        for script in schema_scripts:
-            try:
-                data = json.loads(script.string)
-                schema_data.append(data)
-            except Exception as e:
-                st.error("Error parsing schema: " + str(e))
-        schema_table = build_schema_table(schema_data, url)
-
-        competitor_content[name] = {
-            "headers": headers,
-            "images": images,
-            "videos": videos,
-            "schema_table": schema_table
-        }
-
-    return competitor_content
-
-    
 
 def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
     query = f"site:{site} {keyword}"
