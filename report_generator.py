@@ -36,16 +36,27 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     p.add_run(" Found in AI Overview Sources: ").bold = True
     p.add_run(str(data.get("domain_found", "")))
     document.add_heading("Domain Ranking", level=2)
-    table = document.add_table(rows=2, cols=3)
+    # Create the table with header
+    table = document.add_table(rows=1, cols=3)
     table.style = 'Table Grid'
     hdr_cells = table.rows[0].cells
     hdr_cells[0].text = "Keyword"
     hdr_cells[1].text = "Google Search"
     hdr_cells[2].text = "Google - AI Overview"
-    row_cells = table.rows[1].cells
+
+    # Add row for the primary keyword
+    row_cells = table.add_row().cells
     row_cells[0].text = data.get("keyword", "")
     row_cells[1].text = str(data.get("domain_organic_position", "Not Ranking"))
     row_cells[2].text = str(data.get("domain_ai_position", "Not Ranking"))
+
+    # Add rows for secondary keywords
+    for kw in data.get("secondary_keywords", []):
+        row_cells = table.add_row().cells
+        row_cells[0].text = kw
+        row_cells[1].text = str(data.get("domain_organic_position_secondary", {}).get(kw, "Not Ranking"))
+        row_cells[2].text = str(data.get("domain_ai_position_secondary", {}).get(kw, "Not Ranking"))
+
     document.add_heading("AI Overview Content", level=2)
     ai_content = data.get("ai_overview_content", "")
     for line in ai_content.split("\n"):
@@ -184,10 +195,25 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
         document.add_paragraph("No headers found.")
     document.add_heading("Missing Headers (compared to AI Overview)", level=3)
     if data.get("content_analysis", {}).get("missing_headers"):
+        document.add_paragraph(f"{data.get('keyword', 'Main Keyword')}:", style="List Bullet")
         for mh in data["content_analysis"]["missing_headers"]:
-            document.add_paragraph(mh, style="List Bullet")
+            document.add_paragraph(mh, style="List Bullet 2")
     else:
-        document.add_paragraph("No missing headers compared to AI Overview.")
+        document.add_paragraph(f"No missing headers compared to AI Overview for Target keyword: {data.get('keyword', 'Main Keyword')}.")
+    
+    # Secondary keywords missing headers
+    secondary_keywords = data.get("secondary_keywords", [])
+    content_data_secondary = data.get("content_data_secondary", {})
+
+    for kw in secondary_keywords:
+        missing = content_data_secondary.get(kw, {}).get("missing_headers", [])
+        if missing:
+            document.add_paragraph(f"{kw}:", style="List Bullet")
+            for mh in missing:
+                document.add_paragraph(mh, style="List Bullet 2")
+        else:
+            document.add_paragraph(f"No missing headers compared to AI Overview for secondary keyword: {kw}.")
+    
     document.add_heading("Images (After H1 and Before FAQ)", level=3)
     if data.get("content_analysis", {}).get("images"):
         tbl = document.add_table(rows=1, cols=2)
@@ -319,7 +345,63 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             row_cells[2].text = channel.get("suggestions", "")
     else:
         document.add_paragraph("No social channels data found.")
-        
+
+    document.add_heading("AI Overview Competitors Content Analysis", level=2)
+
+    if data.get("aio_competitor_content"):
+        for source, content in data["aio_competitor_content"].items():
+            document.add_heading(source, level=3)
+
+            # Images
+            document.add_heading("Images", level=4)
+            images = content.get("images", [])
+            if images:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Alt Text'
+                hdr_cells[1].text = 'Image URL'
+
+                for img in images:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = img.get("alt", "")
+                    row_cells[1].text = img.get("src", "")
+            else:
+                document.add_paragraph("No images found.", style="BodyText")
+
+            # Videos
+            document.add_heading("Videos", level=4)
+            videos = content.get("videos", [])
+            if videos:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Tag'
+                hdr_cells[1].text = 'Video Source'
+
+                for video in videos:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = video.get("tag", "").upper()
+                    row_cells[1].text = video.get("src", "")
+            else:
+                document.add_paragraph("No videos found.", style="BodyText")
+
+            # Schema Table
+            document.add_heading("Schema Table", level=4)
+            schema_table = content.get("schema_table", [])
+            if schema_table:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Schema'
+                hdr_cells[1].text = 'Implemented'
+
+                for row in schema_table:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = str(row.get('schema', ''))
+                    row_cells[1].text = str(row.get('implemented', ''))
+            else:
+                document.add_paragraph("No schema data found.", style="BodyText")
+    else:
+        document.add_paragraph("No citations data found.")
+            
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):
         for url in data["competitor_urls"]:
@@ -338,109 +420,376 @@ def generate_pdf_report(data):
     <!DOCTYPE html>
     <html lang="en">
     <head>
-        <meta charset="utf-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <title>AIO Analysis Report</title>
-        <style>
-            body {
-                font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-                margin: 20px;
-                color: #444;
-                line-height: 1.6;
-            }
-            h1, h2, h3 {
-                color: #333;
-                margin-bottom: 10px;
-            }
-            h1 {
-                border-bottom: 2px solid #333;
-                padding-bottom: 5px;
-            }
-            p {
-                margin: 10px 0;
-            }
-            a {
-                color: #1a73e8;
-                text-decoration: none;
-            }
-            a:hover {
-                text-decoration: underline;
-            }
-            table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 20px 0;
-            }
-            th, td {
-                border: 1px solid #ddd;
-                padding: 10px;
-                text-align: left;
-            }
-            th {
-                background-color: #f5f5f5;
-            }
-            ul {
-                margin: 10px 0 20px 20px;
-            }
-            .small-heading {
-                margin-top: 40px;
-            }
-        </style>
+    <meta charset="UTF-8">
+    <title>SEO Analysis Report</title>
+    <style>
+        /* --- Page Setup --- */
+        @page { margin: 1in; }
+        body { font-family: Arial, sans-serif; color: #333; line-height: 1.4; }
+
+        /* --- Headings --- */
+        h1 { font-size: 24px; margin-bottom: 0.5em; }
+        h2 { font-size: 20px; margin-top: 1.5em; margin-bottom: 0.5em; }
+        h3 { font-size: 16px; margin-top: 1em; margin-bottom: 0.4em; }
+        h4 { font-size: 14px; margin-top: 0.8em; margin-bottom: 0.3em; }
+
+        /* --- Paragraphs --- */
+        p { margin: 0.4em 0; }
+        p.small { font-size: 0.9em; color: #666; }
+
+        /* --- Links --- */
+        a { color: #1a0dab; text-decoration: none; }
+        a:hover { text-decoration: underline; }
+
+        /* --- Tables --- */
+        table { width: 100%; border-collapse: collapse; margin: 0.5em 0; }
+        th, td { border: 1px solid #ccc; padding: 0.4em; text-align: left; vertical-align: top; }
+        th { background-color: #f2f2f2; }
+
+        /* --- Lists --- */
+        ul, ol { margin: 0.4em 0 0.4em 1.5em; }
+
+        /* --- Page Breaks --- */
+        .page-break { page-break-before: always; }
+    </style>
     </head>
     <body>
-        <h1>AI Overview Analysis Report</h1>
-        <p><strong>Keyword:</strong> {{ data.keyword }}</p>
-        <p><strong>Target URL:</strong> <a href="{{ data.target_url }}">{{ data.target_url }}</a></p>
-        <p><strong>{{data.domain}} Found in AI Overview Sources:</strong> {{ data.domain_found }}</p>
 
-        <h2>{{data.domain}} Ranking</h2>
-        <table>
-            <thead>
-                <tr>
-                    <th>Keyword</th>
-                    <th>Google Search</th>
-                    <th>Google - AI Overview</th>
-                </tr>
-            </thead>
-            <tbody>
-                <tr>
-                    <td>{{ data.keyword }}</td>
-                    <td>
-                        {% if data.domain_organic_position %}
-                            {{ data.domain_organic_position }}
-                        {% else %}
-                            Not Ranking
-                        {% endif %}
-                    </td>
-                    <td>
-                        {% if data.domain_ai_position %}
-                            {{ data.domain_ai_position }}
-                        {% else %}
-                            Not Ranking
-                        {% endif %}
-                    </td>
-                </tr>
-            </tbody>
-        </table>
+    <!-- Title -->
+    <h1>SEO Analysis Report</h1>
 
-        <h2>Competitors Listed By</h2>
+    <!-- Basic Info -->
+    <p><strong>Keyword:</strong> {{ data.keyword }}</p>
+    <p><strong>Target URL:</strong> <a href="{{ data.target_url }}">{{ data.target_url }}</a></p>
+    <p><strong>{{ domain }}</strong> Found in AI Overview Sources: {{ data.domain_found }}</p>
+
+    <!-- Domain Ranking -->
+    <h2>Domain Ranking</h2>
+    <table>
+        <thead>
+        <tr>
+            <th>Keyword</th>
+            <th>Google Search</th>
+            <th>Google – AI Overview</th>
+        </tr>
+        </thead>
+        <tbody>
+        <!-- Primary -->
+        <tr>
+            <td>{{ data.keyword }}</td>
+            <td>{{ data.domain_organic_position or "Not Ranking" }}</td>
+            <td>{{ data.domain_ai_position or "Not Ranking" }}</td>
+        </tr>
+        <!-- Secondary -->
+        {% for kw in data.secondary_keywords %}
+        <tr>
+            <td>{{ kw }}</td>
+            <td>{{ data.domain_organic_position_secondary.get(kw, "Not Ranking") }}</td>
+            <td>{{ data.domain_ai_position_secondary.get(kw, "Not Ranking") }}</td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+
+    <!-- AI Overview Content -->
+    <h2>AI Overview Content</h2>
+    {% for line in data.ai_overview_content.split('\n') %}
+        <p>{{ line }}</p>
+    {% endfor %}
+
+    <!-- All AI Overview Sources -->
+    <h2>All AI Overview Sources</h2>
+    {% if data.ai_overview_competitors %}
         <table>
+        <thead>
+            <tr><th>URL</th><th>SERP Position</th></tr>
+        </thead>
+        <tbody>
+            {% for item in data.ai_overview_competitors %}
             <tr>
-                <th>Competitor</th>
-                <th>AI Content</th>
-                <th>Source</th>
-            </tr>
-            {% for competitor in competitors %}
-            <tr>
-                <td>{{ competitor.name }}</td>
-                <td>{{ competitor.content }}</td>
-                <td><a href="{{ competitor.source }}">{{ competitor.source }}</a></td>
+            <td><a href="{{ item.url }}">{{ item.url }}</a></td>
+            <td>{{ item.position or "&gt; 50" }}</td>
             </tr>
             {% endfor %}
+        </tbody>
         </table>
+    {% else %}
+        <p>No AI Overview Competitors found.</p>
+    {% endif %}
+
+    <!-- Other Pages -->
+    <h3>Other Pages from AI Overview Sources</h3>
+
+    <!-- Social Sites -->
+    {% if data.social_ai_overview_sites and data.social_ai_overview_sites|sum(attribute='1') %}
+        <h4>Social Sites:</h4>
+        <table>
+        <thead><tr><th>Site</th><th>URL</th></tr></thead>
+        <tbody>
+            {% for site, urls in data.social_ai_overview_sites.items() %}
+            {% for url in urls %}
+            <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <h4>No Social sites found on AI Overview</h4>
+    {% endif %}
+
+    <!-- Popular Sites -->
+    {% if data.popular_ai_overview_sites and data.popular_ai_overview_sites|sum(attribute='1') %}
+        <h4>3rd Party Popular Sites:</h4>
+        <table>
+        <thead><tr><th>Site</th><th>URL</th></tr></thead>
+        <tbody>
+            {% for site, urls in data.popular_ai_overview_sites.items() %}
+            {% for url in urls %}
+            <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <h4>No Popular sites found on AI Overview</h4>
+    {% endif %}
+
+    <!-- Review Sites -->
+    {% if data.review_ai_overview_sites and data.review_ai_overview_sites|sum(attribute='1') %}
+        <h4>Review Sites:</h4>
+        <table>
+        <thead><tr><th>Site</th><th>URL</th></tr></thead>
+        <tbody>
+            {% for site, urls in data.review_ai_overview_sites.items() %}
+            {% for url in urls %}
+            <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
+            {% endfor %}
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <h4>No Review sites found on AI Overview</h4>
+    {% endif %}
+
+    <!-- AI Sources Count -->
+    <p><strong>Number of AI Sources in Organic Search (first 20):</strong> {{ data.ai_sources_in_organic_count }}</p>
+
+    <div class="page-break"></div>
+
+    <!-- Competitors Listed -->
+    <h2>Competitors Listed</h2>
+    {% if data.competitors %}
+        <table>
+        <thead><tr><th>Competitor</th><th>AI Content</th><th>Source</th></tr></thead>
+        <tbody>
+            {% for comp in data.competitors %}
+            <tr>
+            <td>{{ comp.name }}</td>
+            <td>
+                {% if comp.content is iterable and comp.content is not string %}
+                <ul>
+                    {% for item in comp.content %}<li>{{ item }}</li>{% endfor %}
+                </ul>
+                {% else %}
+                {{ comp.content }}
+                {% endif %}
+            </td>
+            <td>{{ comp.source }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% endif %}
+
+    <!-- PAA Section -->
+    <h2>People Also Ask</h2>
+    {% if data.peopleAlsoAsk_ai_overview %}
+        <table>
+        <thead><tr><th>Question</th><th>AI Content</th><th>Source</th></tr></thead>
+        <tbody>
+            {% for qa in data.peopleAlsoAsk_ai_overview %}
+            <tr>
+            <td>{{ qa.question }}</td>
+            <td>{{ qa.content }}</td>
+            <td><a href="{{ qa.link }}">{{ qa.link }}</a></td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% endif %}
+
+    <!-- Content Analysis -->
+    <h2>Content Analysis</h2>
+
+    <h3>Headers</h3>
+    {% if data.content_analysis.headers %}
+        <table>
+        <thead><tr><th>Header Tag</th><th>Header Text</th></tr></thead>
+        <tbody>
+            {% for h in data.content_analysis.headers %}
+            <tr><td>{{ h.tag }}</td><td>{{ h.text }}</td></tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No headers found.</p>
+    {% endif %}
+
+    <h3>Missing Headers (compared to AI Overview)</h3>
+    {% if data.content_analysis.missing_headers %}
+        <ul>
+        {% for mh in data.content_analysis.missing_headers %}
+            <li>{{ mh }}</li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No missing headers for <strong>{{ data.keyword }}</strong>.</p>
+    {% endif %}
+
+    {% for kw in data.secondary_keywords %}
+        {% set miss = data.content_data_secondary.get(kw, {}).get('missing_headers', []) %}
+        <h4>Missing Headers for "{{ kw }}"</h4>
+        {% if miss %}
+        <ul>{% for m in miss %}<li>{{ m }}</li>{% endfor %}</ul>
+        {% else %}
+        <p>No missing headers for secondary keyword: <strong>{{ kw }}</strong>.</p>
+        {% endif %}
+    {% endfor %}
+
+    <h3>Images (After H1 and Before FAQ)</h3>
+    {% if data.content_analysis.images %}
+        <table>
+        <thead><tr><th>Image Source</th><th>Alt Text</th></tr></thead>
+        <tbody>
+            {% for img in data.content_analysis.images %}
+            <tr><td>{{ img.src }}</td><td>{{ img.alt }}</td></tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No images found.</p>
+    {% endif %}
+
+    <h3>Videos Embedded on Page</h3>
+    {% if data.content_analysis.videos %}
+        <table>
+        <thead><tr><th>Video Tag</th><th>Source</th><th>Remarks</th></tr></thead>
+        <tbody>
+            {% for v in data.content_analysis.videos %}
+            <tr>
+            <td>{{ v.tag }}</td>
+            <td>{{ v.src }}</td>
+            <td>It is good practice to add timestamps for key moments in the description.</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No video found on page.</p>
+    {% endif %}
+
+    <h3>Relevant Videos on YouTube Channel</h3>
+    {% if data.relevant_video %}
+        <table>
+        <thead><tr><th>Video</th><th>Suggestion</th></tr></thead>
+        <tbody>
+            {% for vid in (data.relevant_video if data.relevant_video is iterable else [data.relevant_video]) %}
+            <tr><td>{{ vid }}</td><td>Embed this most relevant video on page.</td></tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>There is no relevant video on official channel. Create a video for this topic.</p>
+    {% endif %}
+
+    <h3>Schema Markup</h3>
+    {% if data.content_analysis.schema_table %}
+        <table>
+        <thead><tr><th>Schema</th><th>Implemented</th><th>Remarks</th></tr></thead>
+        <tbody>
+            {% for s in data.content_analysis.schema_table %}
+            <tr><td>{{ s.schema }}</td><td>{{ s.implemented }}</td><td>{{ s.remarks }}</td></tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No schema markup data found.</p>
+    {% endif %}
+
+    <div class="page-break"></div>
+
+    <!-- Brand Mentions -->
+    <h2>Brand Mentionings</h2>
+    <h3>YouTube</h3>
+    {% if data.youtube_results %}
+        <table>
+        <thead>
+            <tr>
+            <th>Title</th><th>Displayed Link</th><th>Source</th><th>Snippet</th><th>Key Moments</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for yt in data.youtube_results %}
+            <tr>
+            <td><a href="{{ yt.link }}">{{ yt.title }}</a></td>
+            <td>{{ yt.displayed_link }}</td>
+            <td>{{ yt.source }}</td>
+            <td>{{ yt.snippet }}</td>
+            <td>{{ yt.key_moments }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No YouTube results found.</p>
+    {% endif %}
+
+    <h4>Suggestions:</h4>
+    <ul>
+        <li>Upload videos frequently.</li>
+        <li>Write keyword-rich descriptions with timestamps and CTAs.</li>
+    </ul>
+
+    <!-- Social Channels -->
+    <h3>Social Channels</h3>
+    {% if data.social_channels %}
+        <table>
+        <thead><tr><th>Social Channel</th><th>Relevant Articles / Questions</th><th>Suggestions</th></tr></thead>
+        <tbody>
+            {% for ch in data.social_channels %}
+            <tr>
+            <td>{{ ch.channel }}</td>
+            <td>
+                <ul>
+                {% for url, title in ch.relevant|urlize_links %}
+                    <li><a href="{{ url }}">{{ title }}</a></li>
+                {% endfor %}
+                </ul>
+            </td>
+            <td>{{ ch.suggestions }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+        </table>
+    {% else %}
+        <p>No social channels data found.</p>
+    {% endif %}
+
+    <!-- Top SERP URLs -->
+    <h2>Top SERP URLs</h2>
+    {% if data.competitor_urls %}
+        <ul>
+        {% for url in data.competitor_urls %}
+            <li><a href="{{ url }}">{{ url }}</a></li>
+        {% endfor %}
+        </ul>
+    {% else %}
+        <p>No competitor URLs found.</p>
+    {% endif %}
 
     </body>
     </html>
+
     """
     template = Template(HTML_TEMPLATE)
     html_report = template.render(**data)
