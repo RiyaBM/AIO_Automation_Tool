@@ -73,7 +73,7 @@ if submitted:
             domain_present_secondary[kw] = check_domain_in_ai_overview(serp_data_secondary[kw], domain, target_url)
             domain_organic_position_secondary[kw] = find_domain_position_in_organic(serp_data_secondary[kw], domain)
             domain_ai_position_secondary[kw]  = find_domain_position_in_ai(serp_data_secondary[kw], domain)
-            content_data_secondary[kw]  = analyze_target_content(target_url, serp_data)
+            content_data_secondary[kw]  = analyze_target_content(target_url, serp_data_secondary[kw])
 
         st.info("Analyzing target URL content...")
         content_data = analyze_target_content(target_url, serp_data)
