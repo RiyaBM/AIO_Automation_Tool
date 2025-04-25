@@ -109,7 +109,7 @@ if submitted:
         ]
         youtube_results = get_youtube_results(keyword, limit_max=5, serp_api_key=SERPAPI_KEY)
 
-        ai_overview_competitor_content = get_competitors_content(competitor_urls_first20)
+        ai_overview_competitor_content = get_competitors_content(ai_overview_competitors)
         
         if domain == "efax":
             domain = "eFax"
