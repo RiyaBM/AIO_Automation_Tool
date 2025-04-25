@@ -381,6 +381,11 @@ def analyze_target_content(target_url, serp_data):
     return {"headers": page_headers, "missing_headers": missing_headers,
             "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
 
+def analyze_secondary_content(page_headers, serp_data):
+    ai_overview_headers = extract_ai_overview_headers(serp_data)
+    missing_headers = compare_headers(page_headers, ai_overview_headers)
+    return {"missing_headers": missing_headers}
+
 def get_competitors_content(competitors):
     competitor_content = {}
 

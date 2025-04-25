@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, search_youtube_video, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
+from utils import get_serp_results, extract_domain, search_youtube_video, analyze_secondary_content, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 import requests
 # from utils import rank_titles_by_semantic_similarity
@@ -62,6 +62,9 @@ if submitted:
             st.warning("You entered more than 5 secondary keywords. Only the first 5 will be used.")
             secondary_keywords = secondary_keywords[:5]
 
+        st.info("Analyzing target URL content...")
+        content_data = analyze_target_content(target_url, serp_data)
+
         serp_data_secondary = {}
         domain_present_secondary = {}
         domain_organic_position_secondary = {}
@@ -73,10 +76,9 @@ if submitted:
             domain_present_secondary[kw] = check_domain_in_ai_overview(serp_data_secondary[kw], domain, target_url)
             domain_organic_position_secondary[kw] = find_domain_position_in_organic(serp_data_secondary[kw], domain)
             domain_ai_position_secondary[kw]  = find_domain_position_in_ai(serp_data_secondary[kw], domain)
-            content_data_secondary[kw]  = analyze_target_content(target_url, serp_data_secondary[kw])
+            content_data_secondary[kw]  = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
 
-        st.info("Analyzing target URL content...")
-        content_data = analyze_target_content(target_url, serp_data)
+        
         
         st.info("Fetching social results from LinkedIn and Reddit...")
 
