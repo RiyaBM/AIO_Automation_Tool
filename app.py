@@ -78,8 +78,6 @@ if submitted:
             domain_ai_position_secondary[kw]  = find_domain_position_in_ai(serp_data_secondary[kw], domain)
             content_data_secondary[kw]  = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
 
-        
-        
         st.info("Fetching social results from LinkedIn and Reddit...")
 
         linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=SERPAPI_KEY)
@@ -110,8 +108,6 @@ if submitted:
             }
         ]
         youtube_results = get_youtube_results(keyword, limit_max=5, serp_api_key=SERPAPI_KEY)
-
-        st.write("Competitors:", ai_overview_competitors)
 
         ai_overview_competitor_content = get_competitors_content(ai_overview_competitors)
         
