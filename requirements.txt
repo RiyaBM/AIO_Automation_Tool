@@ -10,3 +10,4 @@ torch
 transformers
 requests-html
 lxml_html_clean
+aiohttp
