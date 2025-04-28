@@ -426,67 +426,6 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
     else:
         document.add_paragraph("No competitor URLs found.")
     document.save(output_file)
-    st.success("DOCX report generated: " + output_file)["aio_competitor_content"].items():
-            document.add_heading(source, level=3)
-
-            # Images
-            document.add_heading("Images", level=4)
-            images = content.get("images", [])
-            if images:
-                table = document.add_table(rows=1, cols=2)
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Alt Text'
-                hdr_cells[1].text = 'Image URL'
-
-                for img in images:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = img.get("alt", "")
-                    row_cells[1].text = img.get("src", "")
-            else:
-                document.add_paragraph("No images found.", style="BodyText")
-
-            # Videos
-            document.add_heading("Videos", level=4)
-            videos = content.get("videos", [])
-            if videos:
-                table = document.add_table(rows=1, cols=2)
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Tag'
-                hdr_cells[1].text = 'Video Source'
-
-                for video in videos:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = video.get("tag", "").upper()
-                    row_cells[1].text = video.get("src", "")
-            else:
-                document.add_paragraph("No videos found.", style="BodyText")
-
-            # Schema Table
-            document.add_heading("Schema Table", level=4)
-            schema_table = content.get("schema_table", [])
-            if schema_table:
-                table = document.add_table(rows=1, cols=2)
-                hdr_cells = table.rows[0].cells
-                hdr_cells[0].text = 'Schema'
-                hdr_cells[1].text = 'Implemented'
-
-                for row in schema_table:
-                    row_cells = table.add_row().cells
-                    row_cells[0].text = str(row.get('schema', ''))
-                    row_cells[1].text = str(row.get('implemented', ''))
-            else:
-                document.add_paragraph("No schema data found.", style="BodyText")
-    else:
-        document.add_paragraph("No citations data found.")
-            
-    document.add_heading("Top SERP URLs", level=2)
-    if data.get("competitor_urls"):
-        for url in data["competitor_urls"]:
-            p = document.add_paragraph(style="List Bullet")
-            add_hyperlink(p, url, url)
-    else:
-        document.add_paragraph("No competitor URLs found.")
-    document.save(output_file)
     st.success("DOCX report generated: " + output_file)
 
 def generate_pdf_report(data):
