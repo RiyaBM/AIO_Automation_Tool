@@ -1,7 +1,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, search_youtube_video, analyze_secondary_content, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
+from utils import get_serp_results, extract_domain, search_youtube_video, get_ai_overview_othersites, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content
 from report_generator import generate_docx_report, generate_pdf_report
 import requests
 # from utils import rank_titles_by_semantic_similarity
@@ -26,8 +26,6 @@ with st.form("analysis_form"):
     st.markdown("### Enter the following details to run the full SEO analysis:")
     keyword = st.text_input("Keyword")
     target_url = st.text_input("Target URL")
-    s_Keyword = st.text_input("Secondary Keywords")
-    st.info("Please enter maximum 5 Secondary Keywords comma seperated [, seperated]")
     submitted = st.form_submit_button("Run Analysis")
     
 if submitted:
@@ -56,28 +54,9 @@ if submitted:
             review_ai_overviews[site] = get_ai_overview_othersites(serp_data, site)
         people_also_ask_ai_overview = get_ai_overview_questions(serp_data)
 
-        secondary_keywords = [kw.strip() for kw in s_Keyword.split(',') if kw.strip()]
-
-        if len(secondary_keywords) > 5:
-            st.warning("You entered more than 5 secondary keywords. Only the first 5 will be used.")
-            secondary_keywords = secondary_keywords[:5]
-
         st.info("Analyzing target URL content...")
         content_data = analyze_target_content(target_url, serp_data)
-
-        serp_data_secondary = {}
-        domain_present_secondary = {}
-        domain_organic_position_secondary = {}
-        domain_ai_position_secondary = {}
-        content_data_secondary = {}
-        for kw in secondary_keywords:
-            st.info("Fetching SERP data for keyword: " + kw)
-            serp_data_secondary[kw] = get_serp_results(kw, SERPAPI_KEY)
-            domain_present_secondary[kw] = check_domain_in_ai_overview(serp_data_secondary[kw], domain, target_url)
-            domain_organic_position_secondary[kw] = find_domain_position_in_organic(serp_data_secondary[kw], domain)
-            domain_ai_position_secondary[kw]  = find_domain_position_in_ai(serp_data_secondary[kw], domain)
-            content_data_secondary[kw]  = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
-
+        
         st.info("Fetching social results from LinkedIn and Reddit...")
 
         linkedin_results = get_social_results(keyword, "linkedin.com", limit_max=5, serp_api_key=SERPAPI_KEY)
@@ -108,8 +87,6 @@ if submitted:
             }
         ]
         youtube_results = get_youtube_results(keyword, limit_max=5, serp_api_key=SERPAPI_KEY)
-
-        ai_overview_competitor_content = get_competitors_content(ai_overview_competitors)
         
         if domain == "efax":
             domain = "eFax"
@@ -136,13 +113,7 @@ if submitted:
             "popular_ai_overview_sites": popular_ai_overviews,
             "review_ai_overview_sites": review_ai_overviews,
             "peopleAlsoAsk_ai_overview": people_also_ask_ai_overview,
-            "relevant_video": relevant_video,
-            "secondary_keywords": secondary_keywords,
-            "secondary_domain_found": domain_present_secondary,
-            "secondary_organic_position": domain_organic_position_secondary,
-            "secondary_ai_position": domain_ai_position_secondary,
-            "secondary_content_analysis": content_data_secondary,
-            "aio_competitor_content": ai_overview_competitor_content
+            "relevant_video": relevant_video
         }
         
         st.success("Analysis complete!")

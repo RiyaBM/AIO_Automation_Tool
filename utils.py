@@ -1,3 +1,4 @@
+
 import json
 import difflib
 import requests
@@ -18,16 +19,13 @@ import os
 # Load environment variables from .env if present
 load_dotenv()
 
+# Constants
 HEADERS = {
     "User-Agent": (
         "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
         "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/123.0.0.0 Safari/537.36"
-    ),
-    "Accept-Language": "en-US,en;q=0.9",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
-    "Connection": "keep-alive"
+        "Chrome/98.0.4758.102 Safari/537.36"
+    )
 }
 
 SCHEMA_CHECKLIST = [
@@ -383,54 +381,6 @@ def analyze_target_content(target_url, serp_data):
     missing_headers = compare_headers(page_headers, ai_overview_headers)
     return {"headers": page_headers, "missing_headers": missing_headers,
             "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
-
-def analyze_secondary_content(page_headers, serp_data):
-    ai_overview_headers = extract_ai_overview_headers(serp_data)
-    missing_headers = compare_headers(page_headers, ai_overview_headers)
-    return {"missing_headers": missing_headers}
-
-def get_competitors_content(competitors):
-    competitor_content = {}
-
-    for competitor in competitors:
-        url = competitor.get("url")
-        name = extract_domain(url).lower()
-
-        videos = get_embedded_videos(url)
-        response = requests.get(url, headers=HEADERS)
-
-        if response.status_code != 200:
-            st.error(f"Warning: Received status code {response.status_code} from {url}.")
-            competitor_content[name] = {
-                "headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
-                "missing_headers": [],
-                "images": [],
-                "videos": [],
-                "schema_table": []
-            }
-            continue  # Skip to the next competitor
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        headers, images = get_headers_and_images_in_range(soup)
-
-        schema_scripts = soup.find_all("script", type="application/ld+json")
-        schema_data = []
-        for script in schema_scripts:
-            try:
-                data = json.loads(script.string)
-                schema_data.append(data)
-            except Exception as e:
-                st.error("Error parsing schema: " + str(e))
-        schema_table = build_schema_table(schema_data, url)
-
-        competitor_content[name] = {
-            "headers": headers,
-            "images": images,
-            "videos": videos,
-            "schema_table": schema_table
-        }
-
-    return competitor_content
 
 def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
     query = f"site:{site} {keyword}"
