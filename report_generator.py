@@ -2,12 +2,13 @@ import os
 import tempfile
 import streamlit as st
 import pdfkit
-from jinja2 import Template
+from jinja2 import Template, Environment, BaseLoader
 from docx import Document
 from docx.opc.constants import RELATIONSHIP_TYPE
 from dotenv import load_dotenv
 import shutil
-from utils import add_hyperlink
+import re
+from utils import add_hyperlink, process_links_for_template
 
 # Load environment variables from .env if present
 load_dotenv()
@@ -25,7 +26,18 @@ HEADERS = {
     "Connection": "keep-alive"
 }
 
-def generate_docx_report(data,domain, output_file = "aio_report.docx"):
+def generate_docx_report(data, domain, output_file="aio_report.docx"):
+    """
+    Generate a Word document report based on the provided SEO analysis data.
+    
+    Args:
+        data (dict): SEO analysis data.
+        domain (str): Domain name.
+        output_file (str, optional): Output file name. Defaults to "aio_report.docx".
+        
+    Returns:
+        None
+    """
     document = Document()
     document.add_heading("SEO Analysis Report", level=1)
     p = document.add_paragraph()
@@ -232,7 +244,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     else:
         document.add_paragraph("No images found.")
 
-    document.add_heading("Videos Embeded on Page", level = 3)
+    document.add_heading("Videos Embedded on Page", level = 3)
     if data.get("content_analysis", {}).get("videos"):
         tbl = document.add_table(rows=1, cols=3)
         tbl.style = 'Table Grid'
@@ -287,7 +299,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             row_cells[2].text = row.get("remarks", "")
     else:
         document.add_paragraph("No schema markup data found.")
-    document.add_heading("Brand Mentionings", level=2)
+    document.add_heading("Brand Mentions", level=2)
     document.add_heading("YouTube", level=3)
     if data.get("youtube_results"):
         tbl = document.add_table(rows=1, cols=5)
@@ -308,7 +320,7 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
             row_cells[4].text = yt.get("key_moments", "")
     else:
         document.add_paragraph("No YouTube results found.")
-    document.add_heading("Suggetions:", level=4)
+    document.add_heading("Suggestions:", level=4)
     for line in ["Upload videos frequently.", "Write keyword-rich descriptions with timestamps and CTAs."]:
          document.add_paragraph(line, style="List Bullet")
     
@@ -414,12 +426,88 @@ def generate_docx_report(data,domain, output_file = "aio_report.docx"):
     else:
         document.add_paragraph("No competitor URLs found.")
     document.save(output_file)
+    st.success("DOCX report generated: " + output_file)["aio_competitor_content"].items():
+            document.add_heading(source, level=3)
+
+            # Images
+            document.add_heading("Images", level=4)
+            images = content.get("images", [])
+            if images:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Alt Text'
+                hdr_cells[1].text = 'Image URL'
+
+                for img in images:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = img.get("alt", "")
+                    row_cells[1].text = img.get("src", "")
+            else:
+                document.add_paragraph("No images found.", style="BodyText")
+
+            # Videos
+            document.add_heading("Videos", level=4)
+            videos = content.get("videos", [])
+            if videos:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Tag'
+                hdr_cells[1].text = 'Video Source'
+
+                for video in videos:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = video.get("tag", "").upper()
+                    row_cells[1].text = video.get("src", "")
+            else:
+                document.add_paragraph("No videos found.", style="BodyText")
+
+            # Schema Table
+            document.add_heading("Schema Table", level=4)
+            schema_table = content.get("schema_table", [])
+            if schema_table:
+                table = document.add_table(rows=1, cols=2)
+                hdr_cells = table.rows[0].cells
+                hdr_cells[0].text = 'Schema'
+                hdr_cells[1].text = 'Implemented'
+
+                for row in schema_table:
+                    row_cells = table.add_row().cells
+                    row_cells[0].text = str(row.get('schema', ''))
+                    row_cells[1].text = str(row.get('implemented', ''))
+            else:
+                document.add_paragraph("No schema data found.", style="BodyText")
+    else:
+        document.add_paragraph("No citations data found.")
+            
+    document.add_heading("Top SERP URLs", level=2)
+    if data.get("competitor_urls"):
+        for url in data["competitor_urls"]:
+            p = document.add_paragraph(style="List Bullet")
+            add_hyperlink(p, url, url)
+    else:
+        document.add_paragraph("No competitor URLs found.")
+    document.save(output_file)
     st.success("DOCX report generated: " + output_file)
 
 def generate_pdf_report(data):
     """
     Generate an HTML report from a template and convert it into a PDF.
+    
+    Args:
+        data (dict): SEO analysis data dictionary.
+        
+    Returns:
+        str: Path to the generated PDF file.
     """
+    # Custom filter to process links in the template
+    def urlize_links(text):
+        links = process_links_for_template(text)
+        return links or [("", text)]
+        
+    # Set up Jinja2 environment with the custom filter
+    env = Environment(loader=BaseLoader())
+    env.filters['urlize_links'] = urlize_links
+
     HTML_TEMPLATE = """
     <!DOCTYPE html>
     <html lang="en">
@@ -512,7 +600,7 @@ def generate_pdf_report(data):
             {% for item in data.ai_overview_competitors %}
             <tr>
             <td><a href="{{ item.url }}">{{ item.url }}</a></td>
-            <td>{{ item.position or "&gt; 50" }}</td>
+            <td>{{ item.position or "> 50" }}</td>
             </tr>
             {% endfor %}
         </tbody>
@@ -525,15 +613,17 @@ def generate_pdf_report(data):
     <h3>Other Pages from AI Overview Sources</h3>
 
     <!-- Social Sites -->
-    {% if data.social_ai_overview_sites and data.social_ai_overview_sites|sum(attribute='1') %}
+    {% if data.social_ai_overview_sites and data.social_ai_overview_sites.values()|selectattr("length", ">", 0)|list %}
         <h4>Social Sites:</h4>
         <table>
         <thead><tr><th>Site</th><th>URL</th></tr></thead>
         <tbody>
             {% for site, urls in data.social_ai_overview_sites.items() %}
+            {% if urls %}
             {% for url in urls %}
             <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
             {% endfor %}
+            {% endif %}
             {% endfor %}
         </tbody>
         </table>
@@ -542,15 +632,17 @@ def generate_pdf_report(data):
     {% endif %}
 
     <!-- Popular Sites -->
-    {% if data.popular_ai_overview_sites and data.popular_ai_overview_sites|sum(attribute='1') %}
+    {% if data.popular_ai_overview_sites and data.popular_ai_overview_sites.values()|selectattr("length", ">", 0)|list %}
         <h4>3rd Party Popular Sites:</h4>
         <table>
         <thead><tr><th>Site</th><th>URL</th></tr></thead>
         <tbody>
             {% for site, urls in data.popular_ai_overview_sites.items() %}
+            {% if urls %}
             {% for url in urls %}
             <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
             {% endfor %}
+            {% endif %}
             {% endfor %}
         </tbody>
         </table>
@@ -559,15 +651,17 @@ def generate_pdf_report(data):
     {% endif %}
 
     <!-- Review Sites -->
-    {% if data.review_ai_overview_sites and data.review_ai_overview_sites|sum(attribute='1') %}
+    {% if data.review_ai_overview_sites and data.review_ai_overview_sites.values()|selectattr("length", ">", 0)|list %}
         <h4>Review Sites:</h4>
         <table>
         <thead><tr><th>Site</th><th>URL</th></tr></thead>
         <tbody>
             {% for site, urls in data.review_ai_overview_sites.items() %}
+            {% if urls %}
             {% for url in urls %}
             <tr><td>{{ site|capitalize }}</td><td>{{ url }}</td></tr>
             {% endfor %}
+            {% endif %}
             {% endfor %}
         </tbody>
         </table>
@@ -580,150 +674,8 @@ def generate_pdf_report(data):
 
     <div class="page-break"></div>
 
-    <!-- Competitors Listed -->
-    <h2>Competitors Listed</h2>
-    {% if data.competitors %}
-        <table>
-        <thead><tr><th>Competitor</th><th>AI Content</th><th>Source</th></tr></thead>
-        <tbody>
-            {% for comp in data.competitors %}
-            <tr>
-            <td>{{ comp.name }}</td>
-            <td>
-                {% if comp.content is iterable and comp.content is not string %}
-                <ul>
-                    {% for item in comp.content %}<li>{{ item }}</li>{% endfor %}
-                </ul>
-                {% else %}
-                {{ comp.content }}
-                {% endif %}
-            </td>
-            <td>{{ comp.source }}</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% endif %}
-
-    <!-- PAA Section -->
-    <h2>People Also Ask</h2>
-    {% if data.peopleAlsoAsk_ai_overview %}
-        <table>
-        <thead><tr><th>Question</th><th>AI Content</th><th>Source</th></tr></thead>
-        <tbody>
-            {% for qa in data.peopleAlsoAsk_ai_overview %}
-            <tr>
-            <td>{{ qa.question }}</td>
-            <td>{{ qa.content }}</td>
-            <td><a href="{{ qa.link }}">{{ qa.link }}</a></td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% endif %}
-
-    <!-- Content Analysis -->
-    <h2>Content Analysis</h2>
-
-    <h3>Headers</h3>
-    {% if data.content_analysis.headers %}
-        <table>
-        <thead><tr><th>Header Tag</th><th>Header Text</th></tr></thead>
-        <tbody>
-            {% for h in data.content_analysis.headers %}
-            <tr><td>{{ h.tag }}</td><td>{{ h.text }}</td></tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% else %}
-        <p>No headers found.</p>
-    {% endif %}
-
-    <h3>Missing Headers (compared to AI Overview)</h3>
-    {% if data.content_analysis.missing_headers %}
-        <ul>
-        {% for mh in data.content_analysis.missing_headers %}
-            <li>{{ mh }}</li>
-        {% endfor %}
-        </ul>
-    {% else %}
-        <p>No missing headers for <strong>{{ data.keyword }}</strong>.</p>
-    {% endif %}
-
-    {% for kw in data.secondary_keywords %}
-        {% set miss = data.content_data_secondary.get(kw, {}).get('missing_headers', []) %}
-        <h4>Missing Headers for "{{ kw }}"</h4>
-        {% if miss %}
-        <ul>{% for m in miss %}<li>{{ m }}</li>{% endfor %}</ul>
-        {% else %}
-        <p>No missing headers for secondary keyword: <strong>{{ kw }}</strong>.</p>
-        {% endif %}
-    {% endfor %}
-
-    <h3>Images (After H1 and Before FAQ)</h3>
-    {% if data.content_analysis.images %}
-        <table>
-        <thead><tr><th>Image Source</th><th>Alt Text</th></tr></thead>
-        <tbody>
-            {% for img in data.content_analysis.images %}
-            <tr><td>{{ img.src }}</td><td>{{ img.alt }}</td></tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% else %}
-        <p>No images found.</p>
-    {% endif %}
-
-    <h3>Videos Embedded on Page</h3>
-    {% if data.content_analysis.videos %}
-        <table>
-        <thead><tr><th>Video Tag</th><th>Source</th><th>Remarks</th></tr></thead>
-        <tbody>
-            {% for v in data.content_analysis.videos %}
-            <tr>
-            <td>{{ v.tag }}</td>
-            <td>{{ v.src }}</td>
-            <td>It is good practice to add timestamps for key moments in the description.</td>
-            </tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% else %}
-        <p>No video found on page.</p>
-    {% endif %}
-
-    <h3>Relevant Videos on YouTube Channel</h3>
-    {% if data.relevant_video %}
-        <table>
-        <thead><tr><th>Video</th><th>Suggestion</th></tr></thead>
-        <tbody>
-            {% for vid in (data.relevant_video if data.relevant_video is iterable else [data.relevant_video]) %}
-            <tr><td>{{ vid }}</td><td>Embed this most relevant video on page.</td></tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% else %}
-        <p>There is no relevant video on official channel. Create a video for this topic.</p>
-    {% endif %}
-
-    <h3>Schema Markup</h3>
-    {% if data.content_analysis.schema_table %}
-        <table>
-        <thead><tr><th>Schema</th><th>Implemented</th><th>Remarks</th></tr></thead>
-        <tbody>
-            {% for s in data.content_analysis.schema_table %}
-            <tr><td>{{ s.schema }}</td><td>{{ s.implemented }}</td><td>{{ s.remarks }}</td></tr>
-            {% endfor %}
-        </tbody>
-        </table>
-    {% else %}
-        <p>No schema markup data found.</p>
-    {% endif %}
-
-    <div class="page-break"></div>
-
     <!-- Brand Mentions -->
-    <h2>Brand Mentionings</h2>
+    <h2>Brand Mentions</h2>
     <h3>YouTube</h3>
     {% if data.youtube_results %}
         <table>
@@ -767,6 +719,8 @@ def generate_pdf_report(data):
                 <ul>
                 {% for url, title in ch.relevant|urlize_links %}
                     <li><a href="{{ url }}">{{ title }}</a></li>
+                {% else %}
+                    <li>{{ ch.relevant }}</li>
                 {% endfor %}
                 </ul>
             </td>
@@ -793,20 +747,75 @@ def generate_pdf_report(data):
 
     </body>
     </html>
-
     """
-    template = Template(HTML_TEMPLATE)
-    html_report = template.render(**data)
+    # Create template from HTML_TEMPLATE using our custom environment
+    template = env.from_string(HTML_TEMPLATE)
+    
+    # Create a new dict with combined data and domain
+    template_data = {
+        "data": data,
+        "domain": data.get("domain", "Domain")
+    }
+    
+    # Render template
+    html_report = template.render(**template_data)
 
     # Auto-detect wkhtmltopdf
-    wkhtmltopdf_path = shutil.which("wkhtmltopdf") or r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe"
+    wkhtmltopdf_path = shutil.which("wkhtmltopdf")
+    
+    # Try common wkhtmltopdf locations if not found in PATH
+    if not wkhtmltopdf_path:
+        common_paths = [
+            r"C:\Program Files\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            r"C:\Program Files (x86)\wkhtmltopdf\bin\wkhtmltopdf.exe",
+            "/usr/bin/wkhtmltopdf",
+            "/usr/local/bin/wkhtmltopdf",
+        ]
+        for path in common_paths:
+            if os.path.exists(path):
+                wkhtmltopdf_path = path
+                break
 
     # Verify the path
-    if not shutil.which("wkhtmltopdf") and not os.path.exists(wkhtmltopdf_path):
-        raise FileNotFoundError("wkhtmltopdf not found. Install from https://wkhtmltopdf.org/downloads.html")
-
+    if not wkhtmltopdf_path or not os.path.exists(wkhtmltopdf_path):
+        st.warning("wkhtmltopdf not found. Attempting to generate PDF without it...")
+        try:
+            # Try with default configuration
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
+                pdfkit.from_string(html_report, pdf_file.name)
+                return pdf_file.name
+        except Exception as e:
+            st.error(f"Error generating PDF: {str(e)}")
+            st.info("Please install wkhtmltopdf from https://wkhtmltopdf.org/downloads.html")
+            # Create an HTML file as fallback
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as html_file:
+                html_file.write(html_report)
+                st.success(f"Generated HTML report as fallback: {html_file.name}")
+                return html_file.name
+    
+    # Configure pdfkit with the found wkhtmltopdf path
     config = pdfkit.configuration(wkhtmltopdf=wkhtmltopdf_path)
-
-    with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
-        pdfkit.from_string(html_report, pdf_file.name, configuration=config)
-        return pdf_file.name
+    
+    # Generate the PDF with proper options
+    options = {
+        'page-size': 'A4',
+        'margin-top': '20mm',
+        'margin-right': '20mm',
+        'margin-bottom': '20mm',
+        'margin-left': '20mm',
+        'encoding': 'UTF-8',
+        'no-outline': None,
+        'enable-local-file-access': None,
+    }
+    
+    try:
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as pdf_file:
+            pdfkit.from_string(html_report, pdf_file.name, options=options, configuration=config)
+            return pdf_file.name
+    except Exception as e:
+        st.error(f"Error generating PDF: {str(e)}")
+        # Create an HTML file as fallback
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".html", mode="w", encoding="utf-8") as html_file:
+            html_file.write(html_report)
+            st.success(f"Generated HTML report as fallback: {html_file.name}")
+            return html_file.name

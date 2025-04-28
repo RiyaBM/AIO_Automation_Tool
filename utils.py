@@ -12,8 +12,7 @@ from sentence_transformers import SentenceTransformer, util
 from dotenv import load_dotenv
 from docx.oxml.ns import qn
 import time
-from requests_html import HTMLSession
-import asyncio
+import aiohttp
 import os
 # Load environment variables from .env if present
 load_dotenv()
@@ -67,7 +66,7 @@ def extract_domain(url):
 
 def fetch_page_content(url):
     try:
-        response = requests.get(url, timeout=10)
+        response = requests.get(url, headers=HEADERS, timeout=10)
         response.raise_for_status()
         return response.text
     except requests.RequestException as e:
@@ -96,8 +95,6 @@ def compare_headers(page_headers, ai_overview_headers):
         if not any(is_similar(ai_header, ph) for ph in page_header_texts):
             missing.append(ai_header)
     return missing
-
-
 
 def check_domain_in_ai_overview(serp_data, domain, url):
     domain_found = False
@@ -272,8 +269,6 @@ def schema_implemented(schema_data, schema_type):
                     return True
     return False
 
-
-
 def build_schema_table(schema_data, url):
     
     content = fetch_page_content(url)
@@ -311,34 +306,27 @@ def get_headers_and_images_in_range(soup):
                 images.append({"src": el.get("src", ""), "alt": el.get("alt", "")})
     return headers, images
 
-# Function to check for embedded videos
+# Function to check for embedded videos - improved version that doesn't use requests_html
 def get_embedded_videos(url):
-    session = HTMLSession()
-    r = session.get(url)
-
-    # Run .render() safely for Streamlit
     try:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(r.html.arender(timeout=20, sleep=2))
-    except Exception as e:
-        print(f"Render failed: {e}")
+        response = requests.get(url, headers=HEADERS, timeout=15)
+        response.raise_for_status()
+        soup = BeautifulSoup(response.text, "html.parser")
+        
+        # Extract <iframe>, <embed>, and <video> elements
+        videos = []
+        for el in soup.find_all(["iframe", "embed", "video"]):
+            src = el.get("src") or el.get("data-src") or el.get("poster")
+            if src and any(domain in src for domain in ["youtube", "vimeo", "wistia"]):
+                videos.append({
+                    "tag": el.name,
+                    "src": src
+                })
+        
+        return videos
+    except requests.RequestException as e:
+        print(f"Error fetching URL: {e}")
         return []
-
-    # Use BeautifulSoup for consistency with your existing code
-    soup = BeautifulSoup(r.html.html, "html.parser")
-
-    # Extract <iframe>, <embed>, and <video> elements
-    videos = []
-    for el in soup.find_all(["iframe", "embed", "video"]):
-        src = el.get("src") or el.get("data-src") or el.get("poster")
-        if src and any(domain in src for domain in ["youtube", "vimeo", "wistia"]):
-            videos.append({
-                "tag": el.name,
-                "src": src
-            })
-
-    return videos
 
 def search_youtube_video(keyword, domain, serp_api_key=None):
     yt_channel = YOUTUBE_CHANNEL.get(domain, domain)  # Use the mapped channel or fallback to domain
@@ -362,27 +350,46 @@ def search_youtube_video(keyword, domain, serp_api_key=None):
         return f"Error fetching YouTube video: {e}"
 
 def analyze_target_content(target_url, serp_data):
-    response = requests.get(target_url, headers=HEADERS)
-    if response.status_code != 200:
-        st.error(f"Warning: Received status code {response.status_code} from {target_url}.")
-        return {"headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
-                "missing_headers": [], "images": [], "schema_table": []}
-    soup = BeautifulSoup(response.text, "html.parser")
-    page_headers, images_in_range = get_headers_and_images_in_range(soup)
-    videos_in_range = get_embedded_videos(target_url)
-    schema_scripts = soup.find_all("script", type="application/ld+json")
-    schema_data = []
-    for script in schema_scripts:
-        try:
-            data = json.loads(script.string)
-            schema_data.append(data)
-        except Exception as e:
-            st.error("Error parsing schema: " + str(e))
-    schema_table = build_schema_table(schema_data, target_url)
-    ai_overview_headers = extract_ai_overview_headers(serp_data)
-    missing_headers = compare_headers(page_headers, ai_overview_headers)
-    return {"headers": page_headers, "missing_headers": missing_headers,
-            "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
+    try:
+        response = requests.get(target_url, headers=HEADERS, timeout=15)
+        if response.status_code != 200:
+            st.error(f"Warning: Received status code {response.status_code} from {target_url}.")
+            return {"headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
+                    "missing_headers": [], "images": [], "schema_table": [], "videos": []}
+        
+        soup = BeautifulSoup(response.text, "html.parser")
+        page_headers, images_in_range = get_headers_and_images_in_range(soup)
+        videos_in_range = get_embedded_videos(target_url)
+        
+        schema_scripts = soup.find_all("script", type="application/ld+json")
+        schema_data = []
+        for script in schema_scripts:
+            try:
+                data = json.loads(script.string)
+                schema_data.append(data)
+            except Exception as e:
+                st.error("Error parsing schema: " + str(e))
+                
+        schema_table = build_schema_table(schema_data, target_url)
+        ai_overview_headers = extract_ai_overview_headers(serp_data)
+        missing_headers = compare_headers(page_headers, ai_overview_headers)
+        
+        return {
+            "headers": page_headers, 
+            "missing_headers": missing_headers,
+            "images": images_in_range, 
+            "schema_table": schema_table, 
+            "videos": videos_in_range
+        }
+    except Exception as e:
+        st.error(f"Error analyzing target content: {str(e)}")
+        return {
+            "headers": [], 
+            "missing_headers": [],
+            "images": [], 
+            "schema_table": [], 
+            "videos": []
+        }
 
 def analyze_secondary_content(page_headers, serp_data):
     ai_overview_headers = extract_ai_overview_headers(serp_data)
@@ -396,39 +403,48 @@ def get_competitors_content(competitors):
         url = competitor.get("url")
         name = extract_domain(url).lower()
 
-        videos = get_embedded_videos(url)
-        response = requests.get(url, headers=HEADERS)
+        try:
+            videos = get_embedded_videos(url)
+            response = requests.get(url, headers=HEADERS, timeout=15)
 
-        if response.status_code != 200:
-            st.error(f"Warning: Received status code {response.status_code} from {url}.")
+            if response.status_code != 200:
+                st.error(f"Warning: Received status code {response.status_code} from {url}.")
+                competitor_content[name] = {
+                    "headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
+                    "missing_headers": [],
+                    "images": [],
+                    "videos": [],
+                    "schema_table": []
+                }
+                continue  # Skip to the next competitor
+
+            soup = BeautifulSoup(response.text, "html.parser")
+            headers, images = get_headers_and_images_in_range(soup)
+
+            schema_scripts = soup.find_all("script", type="application/ld+json")
+            schema_data = []
+            for script in schema_scripts:
+                try:
+                    data = json.loads(script.string)
+                    schema_data.append(data)
+                except Exception as e:
+                    st.error("Error parsing schema: " + str(e))
+            schema_table = build_schema_table(schema_data, url)
+
             competitor_content[name] = {
-                "headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
-                "missing_headers": [],
+                "headers": headers,
+                "images": images,
+                "videos": videos,
+                "schema_table": schema_table
+            }
+        except Exception as e:
+            st.error(f"Error processing competitor {name}: {str(e)}")
+            competitor_content[name] = {
+                "headers": [],
                 "images": [],
                 "videos": [],
                 "schema_table": []
             }
-            continue  # Skip to the next competitor
-
-        soup = BeautifulSoup(response.text, "html.parser")
-        headers, images = get_headers_and_images_in_range(soup)
-
-        schema_scripts = soup.find_all("script", type="application/ld+json")
-        schema_data = []
-        for script in schema_scripts:
-            try:
-                data = json.loads(script.string)
-                schema_data.append(data)
-            except Exception as e:
-                st.error("Error parsing schema: " + str(e))
-        schema_table = build_schema_table(schema_data, url)
-
-        competitor_content[name] = {
-            "headers": headers,
-            "images": images,
-            "videos": videos,
-            "schema_table": schema_table
-        }
 
     return competitor_content
 
@@ -445,25 +461,43 @@ def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
                 break
     return results
 
-# def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
-
-#     # Read the secret
-#     hf_token = st.secrets["HUGGINGFACE_HUB_TOKEN"]
-
-#     if not hf_token:
-#         st.error("Hugging Face token not found in secrets.toml")
-#         return []
-
-#     # Set it for Hugging Face
-#     os.environ["HUGGINGFACE_HUB_TOKEN"] = hf_token
-
-#     model = SentenceTransformer('all-MiniLM-L6-v2')
-#     query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
-#     title_embeddings = model.encode(titles, convert_to_tensor=True)
-#     cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
-#     cosine_scores = cosine_scores.cpu().numpy().flatten()
-#     ranked_titles = [(titles[i], float(cosine_scores[i])) for i in np.argsort(cosine_scores)[::-1]]
-#     return [item for item in ranked_titles if item[1] > threshold]
+def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
+    """
+    Rank titles by their semantic similarity to a primary keyword.
+    
+    Args:
+        primary_keyword (str): The primary keyword to compare against.
+        titles (list): List of titles to rank.
+        threshold (float, optional): Minimum similarity score to include in results. Defaults to 0.75.
+        
+    Returns:
+        list: List of tuples (title, similarity_score) sorted by similarity in descending order.
+    """
+    if not titles:
+        return []
+    
+    try:
+        # Load a smaller, faster model that doesn't require a Hugging Face token
+        model = SentenceTransformer('paraphrase-MiniLM-L3-v2')
+        
+        # Encode the primary keyword and titles
+        query_embedding = model.encode(primary_keyword, convert_to_tensor=True)
+        title_embeddings = model.encode(titles, convert_to_tensor=True)
+        
+        # Calculate cosine similarities
+        cosine_scores = util.pytorch_cos_sim(query_embedding, title_embeddings)
+        cosine_scores = cosine_scores.cpu().numpy().flatten()
+        
+        # Rank titles by similarity score
+        ranked_titles = [(titles[i], float(cosine_scores[i])) for i in np.argsort(cosine_scores)[::-1]]
+        
+        # Filter by threshold
+        return [item for item in ranked_titles if item[1] > threshold]
+    
+    except Exception as e:
+        st.error(f"Error calculating semantic similarity: {str(e)}")
+        # Fall back to returning titles without ranking if something goes wrong
+        return [(title, 0.8) for title in titles]
 
 def get_youtube_results(keyword, limit_max=5, serp_api_key=None):
     query = f"site:youtube.com {keyword}"
@@ -491,6 +525,17 @@ def get_youtube_results(keyword, limit_max=5, serp_api_key=None):
     return results
 
 def add_hyperlink(paragraph, url, text):
+    """
+    Add a hyperlink to a paragraph.
+    
+    Args:
+        paragraph: The paragraph object to add the hyperlink to.
+        url (str): The URL for the hyperlink.
+        text (str): The display text for the hyperlink.
+        
+    Returns:
+        The hyperlink object.
+    """
     part = paragraph.part
     r_id = part.relate_to(url, RELATIONSHIP_TYPE.HYPERLINK, is_external=True)
     hyperlink = OxmlElement('w:hyperlink')
@@ -507,3 +552,21 @@ def add_hyperlink(paragraph, url, text):
     hyperlink.append(new_run)
     paragraph._p.append(hyperlink)
     return hyperlink
+
+def process_links_for_template(text):
+    """
+    Process hyperlinks in text for template rendering.
+    This extracts all HTML links from a string and returns a list of (url, text) tuples.
+    
+    Args:
+        text (str): Text containing HTML links.
+        
+    Returns:
+        list: List of (url, text) tuples for each link in the text.
+    """
+    if not text or "<a href=" not in text:
+        return []
+        
+    import re
+    links = re.findall(r"<a href='(.*?)' target='_blank'>(.*?)</a>", text)
+    return links
