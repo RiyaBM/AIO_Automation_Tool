@@ -33,6 +33,7 @@ if submitted:
     # Access the API key from Streamlit's secrets
     try:
         SERPAPI_KEY = st.secrets["SERPAPI_KEY"]
+        st.info(SERPAPI_KEY)
         if not SERPAPI_KEY:
             st.error("SERP API Key is required!")
             st.stop()
