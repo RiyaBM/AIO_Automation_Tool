@@ -73,11 +73,6 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
         row_cells[0].text = kw
         row_cells[1].text = str(data.get("domain_organic_position_secondary", {}).get(kw, "Not Ranking"))
         row_cells[2].text = str(data.get("domain_ai_position_secondary", {}).get(kw, "Not Ranking"))
-
-    document.add_heading("AI Overview Content", level=2)
-    ai_content = data.get("ai_overview_content", "")
-    for line in ai_content.split("\n"):
-        document.add_paragraph(line)
     
     document.add_heading("All AI Overview Sources", level=2)
     
@@ -224,21 +219,21 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
             row_cells[2].text = competitor.get("source", "")
 
     # PAA Section
-    document.add_heading("People Also Ask", level=2)
+    # document.add_heading("People Also Ask", level=2)
 
-    if "peopleAlsoAsk_ai_overview" in data:
-        table = document.add_table(rows=1, cols=3)
-        table.style = "Table Grid"
-        hdr_cells = table.rows[0].cells
-        hdr_cells[0].text = "Question"
-        hdr_cells[1].text = "AI Content"
-        hdr_cells[2].text = "Source"
+    # if "peopleAlsoAsk_ai_overview" in data:
+    #     table = document.add_table(rows=1, cols=3)
+    #     table.style = "Table Grid"
+    #     hdr_cells = table.rows[0].cells
+    #     hdr_cells[0].text = "Question"
+    #     hdr_cells[1].text = "AI Content"
+    #     hdr_cells[2].text = "Source"
 
-        for ques in data["peopleAlsoAsk_ai_overview"]:
-            row_cells = table.add_row().cells
-            row_cells[0].text = ques.get("question", "")
-            row_cells[1].text = ques.get("content", "")
-            row_cells[2].text = ques.get("link", "")
+    #     for ques in data["peopleAlsoAsk_ai_overview"]:
+    #         row_cells = table.add_row().cells
+    #         row_cells[0].text = ques.get("question", "")
+    #         row_cells[1].text = ques.get("content", "")
+    #         row_cells[2].text = ques.get("link", "")
 
     document.add_heading("Content Analysis", level=2)
     document.add_heading("Headers", level=3)
@@ -256,7 +251,7 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
         document.add_paragraph("No headers found.")
     document.add_heading("Missing Headers (compared to AI Overview)", level=3)
     if data.get("content_analysis", {}).get("missing_headers"):
-        document.add_paragraph(f"{data.get('keyword', 'Main Keyword')}:", style="List Bullet")
+        document.add_paragraph(f"Missing Headers for keyword:: {data.get('keyword', 'Main Keyword')}:", style="List Bullet")
         for mh in data["content_analysis"]["missing_headers"]:
             document.add_paragraph(mh, style="List Bullet 2")
     else:
@@ -269,7 +264,7 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
     for kw in secondary_keywords:
         missing = content_data_secondary.get(kw, {}).get("missing_headers", [])
         if missing:
-            document.add_paragraph(f"{kw}:", style="List Bullet")
+            document.add_paragraph(f"Missing Headers for keyword:: {kw}:", style="List Bullet")
             for mh in missing:
                 document.add_paragraph(mh, style="List Bullet 2")
         else:
@@ -470,6 +465,20 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
                 document.add_paragraph("No schema data found.", style="BodyText")
     else:
         document.add_paragraph("No citations data found.")
+
+    document.add_heading(f'AI Overview Content for: {data.get("keyword")}', level=2)
+    ai_content = data.get("ai_overview_content", "")
+    for line in ai_content.split("\n"):
+        document.add_paragraph(line)
+
+    secondary_ai_content = data.get("secondary_ai_overview_content")
+
+    for kw in secondary_keywords:
+        document.add_heading(f"\nAI Overview Content for: {kw}", level=2)
+        ai_content = secondary_ai_content[kw]
+        for line in ai_content.split("\n"):
+            document.add_paragraph(line)
+
             
     document.add_heading("Top SERP URLs", level=2)
     if data.get("competitor_urls"):

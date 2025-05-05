@@ -82,6 +82,7 @@ if submitted:
         domain_ai_position_secondary = {}
         content_data_secondary = {}
         secondary_ai_overview_competitors = {} 
+        secondary_ai_overview_content = {}
         
         for kw in secondary_keywords:
             with st.spinner(f"Fetching SERP data for secondary keyword: {kw}"):
@@ -94,6 +95,7 @@ if submitted:
                 competitor_urls = extract_competitor_urls(serp_data_secondary[kw])
                 competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
                 ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in competitor_urls_first20)
+                secondary_ai_overview_content[kw] = get_ai_overview_content(serp_data_secondary[kw])
 
                 # Process site categories
                 for site in SOCIAL_SITES:
@@ -175,6 +177,7 @@ if submitted:
             "domain_organic_position_secondary": domain_organic_position_secondary,
             "domain_ai_position_secondary": domain_ai_position_secondary,
             "content_data_secondary": content_data_secondary,
+            "secondary_ai_overview_content": secondary_ai_overview_content,
             "aio_competitor_content": ai_overview_competitor_content
         }
         
