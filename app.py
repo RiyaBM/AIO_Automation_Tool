@@ -1,3 +1,4 @@
+"""app.py"""
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
@@ -80,6 +81,7 @@ if submitted:
         domain_organic_position_secondary = {}
         domain_ai_position_secondary = {}
         content_data_secondary = {}
+        secondary_ai_overview_competitors = {} 
         
         for kw in secondary_keywords:
             with st.spinner(f"Fetching SERP data for secondary keyword: {kw}"):
@@ -88,6 +90,18 @@ if submitted:
                 domain_organic_position_secondary[kw] = find_domain_position_in_organic(serp_data_secondary[kw], domain)
                 domain_ai_position_secondary[kw] = find_domain_position_in_ai(serp_data_secondary[kw], domain)
                 content_data_secondary[kw] = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
+                secondary_ai_overview_competitors[kw] = get_ai_overview_competitors(serp_data_secondary[kw], domain)
+                competitor_urls = extract_competitor_urls(serp_data_secondary[kw])
+                competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
+                ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in competitor_urls_first20)
+
+                # Process site categories
+                for site in SOCIAL_SITES:
+                    social_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
+                for site in POPULAR_SITES:
+                    popular_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
+                for site in REVIEW_SITES:
+                    review_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
 
         with st.spinner("Fetching social results from LinkedIn and Reddit..."):
             # Get social results
@@ -142,6 +156,7 @@ if submitted:
             "target_url": target_url,
             "competitor_urls": competitor_urls,
             "ai_overview_competitors": ai_overview_competitors,
+            "secondary_ai_overview_competitors": secondary_ai_overview_competitors,
             "domain_found": domain_present,
             "ai_sources_in_organic_count": ai_sources_in_organic_count,
             "ai_overview_content": ai_overview_content,

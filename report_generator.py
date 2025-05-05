@@ -1,3 +1,4 @@
+"""report_generator.py"""
 import os
 import tempfile
 import streamlit as st
@@ -79,30 +80,74 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
         document.add_paragraph(line)
     
     document.add_heading("All AI Overview Sources", level=2)
-    ai_competitors = data.get("ai_overview_competitors")
-    if ai_competitors:
-        table = document.add_table(rows=1, cols=2)
+    
+    # Get primary keyword AI Overview competitors
+    ai_competitors = data.get("ai_overview_competitors", [])
+    
+    # Get AI Overview competitors from secondary keywords, if available
+    secondary_ai_competitors = data.get("secondary_ai_overview_competitors", {})
+    
+    # Combine all AI Overview competitors
+    all_ai_competitors = ai_competitors.copy()
+    
+    # Add sources from secondary keywords with keyword labeling
+    for keyword, competitors in secondary_ai_competitors.items():
+        for competitor in competitors:
+            # Add keyword info to the competitor
+            competitor_with_keyword = competitor.copy()
+            competitor_with_keyword["keyword"] = keyword
+            all_ai_competitors.append(competitor_with_keyword)
+    
+    # Remove duplicates based on URL
+    unique_urls = set()
+    unique_ai_competitors = []
+    
+    for competitor in all_ai_competitors:
+        url = competitor.get("url")
+        if url and url not in unique_urls:
+            unique_urls.add(url)
+            unique_ai_competitors.append(competitor)
+    
+    if unique_ai_competitors:
+        # Create a table with 3 columns to include keyword information
+        table = document.add_table(rows=1, cols=4)
         table.style = 'Light List'  # or use 'Table Grid' or any Word style you prefer
 
         # Header row
         hdr_cells = table.rows[0].cells
         hdr_cells[0].text = 'URL'
         hdr_cells[1].text = 'SERP Position'
+        hdr_cells[2].text = 'AI Citation'
+        hdr_cells[3].text = 'Source Keyword'
 
-        for item in ai_competitors:
+        for item in unique_ai_competitors:
             row_cells = table.add_row().cells
             url = item.get("url")
-            position = item.get("position", "> 50")
+            # Use actual position if available, otherwise "> 50"
+            position = item.get("position")
+            position_text = str(position) if position is not None else "> 50"
+            
+            # Use actual citation if available, otherwise "Not Ranking"
+            citation = item.get("citation")
+            citation_text = str(citation) if citation is not None else "Not Ranking"
+            
+            keyword_source = item.get("keyword", data.get("keyword", "Primary"))  # Default to "Primary" for the main keyword
 
             # Add hyperlink to the first cell
             p = row_cells[0].paragraphs[0]
             add_hyperlink(p, url, url)
 
             # Add position to second cell
-            row_cells[1].text = str(position) if position is not None else "N/A"
+            row_cells[1].text = position_text
+            
+            # Add citation to third cell
+            row_cells[2].text = citation_text
+            # Add source keyword to fourth cell
+            row_cells[3].text = keyword_source
     else:
         document.add_paragraph("No AI Overview Competitors found.")
-
+    
+    # Rest of the code for other sections
     document.add_heading("Other Pages from AI Overview Sources", level=3)
 
     if data.get("social_ai_overview_sites") and any(data["social_ai_overview_sites"].values()):
@@ -232,15 +277,23 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
     
     document.add_heading("Images (After H1 and Before FAQ)", level=3)
     if data.get("content_analysis", {}).get("images"):
-        tbl = document.add_table(rows=1, cols=2)
+        tbl = document.add_table(rows=1, cols=3)  # Changed from 2 to 3 columns
         tbl.style = 'Table Grid'
         hdr_cells = tbl.rows[0].cells
         hdr_cells[0].text = "Image Source"
         hdr_cells[1].text = "Alt Text"
+        hdr_cells[2].text = "Suggested Alt Text"  # New column
+        
         for image in data["content_analysis"]["images"]:
             row_cells = tbl.add_row().cells
             row_cells[0].text = image.get("src", "")
             row_cells[1].text = image.get("alt", "")
+            
+            # Get suggested alt text if it's in the data
+            if "suggested_alt" in image:
+                row_cells[2].text = image.get("suggested_alt", "")
+            else:
+                row_cells[2].text = "No suggestion available"
     else:
         document.add_paragraph("No images found.")
 
@@ -530,17 +583,37 @@ def generate_pdf_report(data):
 
     <!-- All AI Overview Sources -->
     <h2>All AI Overview Sources</h2>
-    {% if data.ai_overview_competitors %}
+    {% set unique_urls = [] %}
+    {% set all_competitors = [] %}
+
+    {# First collect all unique competitors #}
+    {% for item in data.ai_overview_competitors %}
+        {% set _ = all_competitors.append({'url': item.url, 'position': item.position, 'keyword': 'Primary'}) %}
+    {% endfor %}
+
+    {# Add competitors from secondary keywords #}
+    {% for kw, competitors in data.secondary_ai_overview_competitors.items() %}
+        {% for item in competitors %}
+            {% set _ = all_competitors.append({'url': item.url, 'position': item.position, 'keyword': kw}) %}
+        {% endfor %}
+    {% endfor %}
+
+    {# Display the combined unique list #}
+    {% if all_competitors %}
         <table>
         <thead>
-            <tr><th>URL</th><th>SERP Position</th></tr>
+            <tr><th>URL</th><th>SERP Position</th><th>Source Keyword</th></tr>
         </thead>
         <tbody>
-            {% for item in data.ai_overview_competitors %}
-            <tr>
-            <td><a href="{{ item.url }}">{{ item.url }}</a></td>
-            <td>{{ item.position or "> 50" }}</td>
-            </tr>
+            {% for item in all_competitors %}
+                {% if item.url not in unique_urls %}
+                    {% set _ = unique_urls.append(item.url) %}
+                    <tr>
+                    <td><a href="{{ item.url }}">{{ item.url }}</a></td>
+                    <td>{{ item.position or "> 50" }}</td>
+                    <td>{{ item.keyword }}</td>
+                    </tr>
+                {% endif %}
             {% endfor %}
         </tbody>
         </table>

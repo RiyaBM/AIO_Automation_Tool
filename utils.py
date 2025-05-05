@@ -1,3 +1,4 @@
+"""utils.py"""
 import json
 import difflib
 import requests
@@ -108,21 +109,75 @@ def check_domain_in_ai_overview(serp_data, domain, url):
                 domain_found = True
     return domain_found
 
-def find_domain_position_in_organic(serp_data, domain):
+def find_domain_position_in_organic(serp_data, domain, serp_api_key=None):
+    """
+    Find the position of a domain in organic search results up to position 50.
+    Uses pagination to check up to 5 pages if needed.
+    
+    Args:
+        serp_data (dict): Initial SERP data from the API.
+        domain (str): Domain to look for.
+        serp_api_key (str): SerpAPI key for fetching additional pages if needed.
+        
+    Returns:
+        int or str: Position of the domain in organic results (1-50) or "> 50" if not found.
+    """
+    # Check the first page
     if "organic_results" in serp_data:
         for i, result in enumerate(serp_data["organic_results"]):
-            link = result.get("link", "")
-            if domain in link.lower():
+            link = result.get("link", "").lower()
+            if domain in link:
                 return i + 1
-    return None
+    
+        # If domain not found on first page and we have API key, check additional pages
+        if serp_api_key and "serpapi_pagination" in serp_data:
+            # SerpAPI typically returns 10 results per page
+            # We'll check up to 5 pages (positions 1-50)
+            for page in range(2, 6):  # Pages 2-5
+                if str(page) in serp_data.get("serpapi_pagination", {}).get("other_pages", {}):
+                    next_page_url = serp_data["serpapi_pagination"]["other_pages"][str(page)]
+                    
+                    # Extract the 'start' parameter which indicates the position offset
+                    import re
+                    start_match = re.search(r'start=(\d+)', next_page_url)
+                    if not start_match:
+                        continue
+                    
+                    start_position = int(start_match.group(1))
+                    
+                    # Construct API call for next page
+                    try:
+                        params = {
+                            "engine": "google",
+                            "start": start_position,
+                            "q": serp_data.get("search_parameters", {}).get("q", ""),
+                            "api_key": serp_api_key
+                        }
+                        
+                        response = requests.get("https://serpapi.com/search", params=params)
+                        next_page_data = response.json()
+                        
+                        if "organic_results" in next_page_data:
+                            for i, result in enumerate(next_page_data["organic_results"]):
+                                link = result.get("link", "").lower()
+                                if domain in link:
+                                    # Position is based on the start offset plus position in current page
+                                    return start_position + i + 1
+                    except Exception as e:
+                        print(f"Error fetching additional page: {e}")
+        
+        # If we've checked all available results up to 50 and domain not found
+        return "> 50"
+    return "Not Ranking"  # Return "Not Ranking" if no organic results exist
 
 def find_domain_position_in_ai(serp_data, domain):
     if "ai_overview" in serp_data and "references" in serp_data["ai_overview"]:
         for i, ref in enumerate(serp_data["ai_overview"]["references"]):
-            link = ref.get("link", "")
-            if domain in link.lower():
+            link = ref.get("link", "").lower()
+            if domain in link:
                 return i + 1
-    return None
+        return "Not Ranking"  # Return "Not Ranking" if domain not found in AI references
+    return "AI Not Appearing"  # Return "AI Not Appearing" if no AI overview exists
 
 def get_serp_results(keyword, serp_api_key):
     params = {
@@ -151,13 +206,17 @@ def get_ai_overview_competitors(serp_data, competitor_key):
     if "ai_overview" in serp_data:
         ai_overview = serp_data["ai_overview"]
         if "references" in ai_overview:
+            ref_indexes = {ref.get("index"): i + 1 for i, ref in enumerate(ai_overview["references"])}
+            
             for ref in ai_overview["references"]:
                 if "link" in ref:
                     trimmed_link = trim_url(ref["link"])
                     position = find_domain_position_in_organic(serp_data, trimmed_link.lower())
+                    citation = ref_indexes.get(ref.get("index"))
                     entry = {
                         "url": trimmed_link,
-                        "position": position
+                        "position": position,
+                        "citation": citation
                     }
                     if any(comp.lower() in trimmed_link.lower() for comp in competitor_directory):
                         prioritized.append(entry)
@@ -349,6 +408,47 @@ def search_youtube_video(keyword, domain, serp_api_key=None):
     except requests.RequestException as e:
         return f"Error fetching YouTube video: {e}"
 
+
+def get_alt_text_suggestion(current_img, page_url):
+    """Get alt text suggestion from OpenAI API using the updated API (1.0.0+)."""
+    try:
+        # Check if OPENAI_API_KEY is in secrets
+        openai_api_key = st.secrets.get("OPENAI_API_KEY")
+        if not openai_api_key:
+            return "OpenAI API key not configured"
+        
+        import openai
+        client = openai.OpenAI(api_key=openai_api_key)
+        
+        prompt = f"""create an alt text for this image in max 10 to 15 words that's in one line,
+describing image,
+tone should be objective,
+don't use words like [person, man or woman],
+alingn with the content and intent of the page.
+
+page url: {page_url}
+Image Source: {current_img}
+
+Suggested alt text:"""
+
+        # Using the new client-based API format
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an SEO specialist helping optimize alt text for images."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=100,
+            temperature=0.7
+        )
+        
+        # New way to access the response content
+        suggestion = response.choices[0].message.content.strip()
+        return suggestion
+    except Exception as e:
+        print(f"Error getting alt text suggestion: {e}")
+        return f"Error generating suggestion: {str(e)[:50]}..."
+
 def analyze_target_content(target_url, serp_data):
     try:
         response = requests.get(target_url, headers=HEADERS, timeout=15)
@@ -359,6 +459,20 @@ def analyze_target_content(target_url, serp_data):
         
         soup = BeautifulSoup(response.text, "html.parser")
         page_headers, images_in_range = get_headers_and_images_in_range(soup)
+
+         # Add suggested alt text to images
+        if images_in_range:
+            for image in images_in_range:
+                
+                # Get alt text suggestion using OpenAI API
+                suggested_alt = get_alt_text_suggestion(
+                    image.get("src", ""),
+                    target_url
+                )
+                
+                # Add the suggestion to the image data
+                image["suggested_alt"] = suggested_alt
+                
         videos_in_range = get_embedded_videos(target_url)
         
         schema_scripts = soup.find_all("script", type="application/ld+json")
@@ -374,13 +488,8 @@ def analyze_target_content(target_url, serp_data):
         ai_overview_headers = extract_ai_overview_headers(serp_data)
         missing_headers = compare_headers(page_headers, ai_overview_headers)
         
-        return {
-            "headers": page_headers, 
-            "missing_headers": missing_headers,
-            "images": images_in_range, 
-            "schema_table": schema_table, 
-            "videos": videos_in_range
-        }
+        return {"headers": page_headers, "missing_headers": missing_headers,
+                "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
     except Exception as e:
         st.error(f"Error analyzing target content: {str(e)}")
         return {
