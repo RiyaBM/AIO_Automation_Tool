@@ -15,7 +15,12 @@ from docx.oxml.ns import qn
 import time
 import aiohttp
 import os
+from urllib.parse import urlparse, parse_qs
 # Load environment variables from .env if present
+# Extract JSON from the response
+import re
+import openai
+            
 load_dotenv()
 
 HEADERS = {
@@ -41,7 +46,8 @@ SCHEMA_CHECKLIST = [
 
 COMPETITOR_DIRECTORY = {
     "efax": ["Fax.Plus", "CocoFax", "eFax", "iFax", "FaxBurner"],
-    "splashtop": ["TeamViewer", "AnyDesk", "ManageEngine", "BeyondTrust", "GoTo", "Splashtop"]
+    "splashtop": ["TeamViewer", "AnyDesk", "ManageEngine", "BeyondTrust", "GoTo", "Splashtop"],
+    "fortinet": ["paloaltonetworks", "cisco", "forcepoint", "hpe", "checkpoint"]
 }
 
 YOUTUBE_CHANNEL = {
@@ -109,72 +115,52 @@ def check_domain_in_ai_overview(serp_data, domain, url):
                 domain_found = True
     return domain_found
 
-def find_domain_position_in_organic(serp_data, domain, serp_api_key=None):
-    """
-    Find the position of a domain in organic search results up to position 50.
-    Uses pagination to check up to 5 pages if needed.
-    
-    Args:
-        serp_data (dict): Initial SERP data from the API.
-        domain (str): Domain to look for.
-        serp_api_key (str): SerpAPI key for fetching additional pages if needed.
+def is_domain_match(url, target_domain):
+        if not url:
+            return False
+            
+        parsed = urlparse(url.lower())
+        url_domain = parsed.netloc.replace('www.', '')
         
-    Returns:
-        int or str: Position of the domain in organic results (1-50) or "> 50" if not found.
-    """
-    # Check the first page
+        # Direct match
+        if url_domain == target_domain:
+            return True
+            
+        # Subdomain match
+        if url_domain.endswith('.' + target_domain):
+            return True
+            
+        # Check if domain is a significant part
+        domain_parts = url_domain.split('.')
+        if target_domain in domain_parts:
+            return True
+            
+        return False
+
+def find_domain_position_in_organic(serp_data, domain):
+     # Normalize the domain
+    domain = domain.lower().replace('www.', '')
+
+    # Check the current page of results
     if "organic_results" in serp_data:
         for i, result in enumerate(serp_data["organic_results"]):
-            link = result.get("link", "").lower()
-            if domain in link:
-                return i + 1
-    
-        # If domain not found on first page and we have API key, check additional pages
-        if serp_api_key and "serpapi_pagination" in serp_data:
-            # SerpAPI typically returns 10 results per page
-            # We'll check up to 5 pages (positions 1-50)
-            for page in range(2, 6):  # Pages 2-5
-                if str(page) in serp_data.get("serpapi_pagination", {}).get("other_pages", {}):
-                    next_page_url = serp_data["serpapi_pagination"]["other_pages"][str(page)]
-                    
-                    # Extract the 'start' parameter which indicates the position offset
-                    import re
-                    start_match = re.search(r'start=(\d+)', next_page_url)
-                    if not start_match:
-                        continue
-                    
-                    start_position = int(start_match.group(1))
-                    
-                    # Construct API call for next page
-                    try:
-                        params = {
-                            "engine": "google",
-                            "start": start_position,
-                            "q": serp_data.get("search_parameters", {}).get("q", ""),
-                            "api_key": serp_api_key
-                        }
-                        
-                        response = requests.get("https://serpapi.com/search", params=params)
-                        next_page_data = response.json()
-                        
-                        if "organic_results" in next_page_data:
-                            for i, result in enumerate(next_page_data["organic_results"]):
-                                link = result.get("link", "").lower()
-                                if domain in link:
-                                    # Position is based on the start offset plus position in current page
-                                    return start_position + i + 1
-                    except Exception as e:
-                        print(f"Error fetching additional page: {e}")
-        
-        # If we've checked all available results up to 50 and domain not found
+            link = result.get("link", "")
+            if is_domain_match(link, domain):
+                return i + 1  # Found the domain at position i+1
+            
+        # If not found in current results, return "> 50"
         return "> 50"
-    return "Not Ranking"  # Return "Not Ranking" if no organic results exist
+    # No organic results found
+    return "Not Ranking"
 
 def find_domain_position_in_ai(serp_data, domain):
+    # Normalize the domain
+    domain = domain.lower().replace('www.', '')
+
     if "ai_overview" in serp_data and "references" in serp_data["ai_overview"]:
         for i, ref in enumerate(serp_data["ai_overview"]["references"]):
-            link = ref.get("link", "").lower()
-            if domain in link:
+            link = ref.get("link", "")
+            if is_domain_match(link, domain):
                 return i + 1
         return "Not Ranking"  # Return "Not Ranking" if domain not found in AI references
     return "AI Not Appearing"  # Return "AI Not Appearing" if no AI overview exists
@@ -190,6 +176,19 @@ def get_serp_results(keyword, serp_api_key):
     response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
     return response.json()
 
+def get_50serp_results(keyword, serp_api_key):
+    params = {
+        "engine": "google",
+        "hl": "en",
+        "gl": "us",
+        "q": keyword,
+        "start": 0,
+        "num": 50,
+        "api_key": serp_api_key,
+    }
+    response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
+    return response.json()
+
 def extract_competitor_urls(serp_data):
     competitor_urls = []
     if "organic_results" in serp_data:
@@ -198,7 +197,7 @@ def extract_competitor_urls(serp_data):
                 competitor_urls.append(result["link"])
     return competitor_urls
 
-def get_ai_overview_competitors(serp_data, competitor_key):
+def get_ai_overview_competitors(serp_data, serp_data50, competitor_key):
     competitor_directory = COMPETITOR_DIRECTORY.get(competitor_key, [])
     prioritized = []
     others = []
@@ -211,7 +210,7 @@ def get_ai_overview_competitors(serp_data, competitor_key):
             for ref in ai_overview["references"]:
                 if "link" in ref:
                     trimmed_link = trim_url(ref["link"])
-                    position = find_domain_position_in_organic(serp_data, trimmed_link.lower())
+                    position = find_domain_position_in_organic(serp_data50, trimmed_link.lower())
                     citation = ref_indexes.get(ref.get("index"))
                     entry = {
                         "url": trimmed_link,
@@ -408,6 +407,183 @@ def search_youtube_video(keyword, domain, serp_api_key=None):
     except requests.RequestException as e:
         return f"Error fetching YouTube video: {e}"
 
+   
+def extract_full_page_content(soup):
+    """
+    Extract the full content of the page from H1 to FAQ (if present).
+    
+    Args:
+        soup (BeautifulSoup): BeautifulSoup object of the page.
+        
+    Returns:
+        str: The extracted page content as text.
+    """
+    # Find the first H1 as starting point
+    h1 = soup.find('h1')
+    if not h1:
+        return "No H1 found on page."
+    
+    # Find FAQ section if present (often marked by h2/h3 with 'faq' in text)
+    faq_section = None
+    for header in soup.find_all(['h2', 'h3', 'h4']):
+        if 'faq' in header.get_text().lower():
+            faq_section = header
+            break
+    
+    content_elements = []
+    
+    # If we found both H1 and FAQ section
+    if h1 and faq_section:
+        # Get all elements between H1 and FAQ
+        current = h1
+        while current and current != faq_section:
+            if current.name:  # Skip NavigableString objects
+                content_elements.append(current)
+            current = current.next_element
+        
+        # Include the FAQ section and its content (common pattern of dt/dd)
+        content_elements.append(faq_section)
+        
+        # Look for FAQ content - usually in a dl, ul, or div after the FAQ header
+        faq_content = None
+        current = faq_section.next_sibling
+        
+        # Look through next siblings to find likely FAQ content
+        while current and not faq_content:
+            if current.name in ['dl', 'ul', 'div', 'section']:
+                # Check if this might be a FAQ container
+                if current.find(['dt', 'li', 'h3', 'h4', 'strong']):
+                    faq_content = current
+                    break
+            current = current.next_sibling
+
+        if faq_content:
+            content_elements.append(faq_content)
+    
+    # If no FAQ found, get all content after H1
+    elif h1:
+        # Start with H1
+        content_elements.append(h1)
+        
+        # Get siblings of H1 (typically the main content follows H1)
+        for sibling in h1.next_siblings:
+            if sibling.name:  # Skip NavigableString objects
+                content_elements.append(sibling)
+    
+    # Extract text from all elements
+    page_content = ""
+    
+    for element in content_elements:
+        # For headers, format them appropriately
+        if element.name in ['h1', 'h2', 'h3', 'h4', 'h5', 'h6']:
+            page_content += f"\n{element.name.upper()}: {element.get_text(strip=True)}\n"
+        
+        # For paragraphs and other text elements
+        elif element.name in ['p', 'div', 'span', 'li', 'dt', 'dd', 'section', 'article']:
+            text = element.get_text(strip=True)
+            if text:  # Only add non-empty text
+                page_content += f"{text}\n\n"
+    
+    return page_content.strip()
+
+def perform_content_gap_analysis(ai_overview_content, page_content, openai_api_key):
+    # Create the prompt for OpenAI API
+    prompt = f"""
+    * **Objective:** Identify content gaps between the AIO summary and the content on the page, and categorize critical issues under "Definition," "Content Updation," and "Content Addition." Provide actionable suggestions for improvement and cite relevant references to align with the AIO summary.
+    * **Categories to Analyze:**
+    * **Definition:**
+        * **Current Status:** Is the definition related to the topic available on the page? If yes, is it contextually aligned with the AIO summary?
+        * **Suggested Status:**
+            * If the definition is missing, suggest adding a concise, relevant definition.
+            * If the definition is not contextually aligned, suggest revising it and provide citation from the AIO summary.
+            * If the definition is fine, indicate it with "-".
+    * **Content Updation:**
+        * **Current Status:**
+            * Identify which content is partially discussed compared to the AIO summary.
+            * Identify if any part of the page is text-heavy or lacks readability (e.g., long paragraphs or dense information).
+        * **Suggested Status:**
+            * Suggest which existing sections need expanded content or updates.
+            * Propose formatting changes such as breaking content into **numbered lists**, **bullet points**, etc., for improved readability.
+            * If no content updates are needed, leave it as "-".
+    * **Content Addition:**
+        * **Current Status:** Identify critical headers or topics that are missing on the page.
+        * **Suggested Status:**
+            * Suggest adding new headers, sub-headers, or FAQ questions to cover missing topics.
+            * Mention where exactly these additions should be placed on the page.
+            * Provide citation references from AIO summary for content suggestions.
+            * If no content updates are needed, leave it as "-".
+    * **Expected Format:**
+    * Provide a **table format** with three columns:
+        * **Category** (Definition, Content Updation, Content Addition)
+        * **Current Status** (Current state of the content on the page)
+        * **Suggestions** (Improvement suggestions, including specific references for AIO summary alignment)
+
+    Page Content: {page_content}
+    AI overview summary for keywords: {ai_overview_content}
+
+    Based on the above content, provide a content gap analysis in the format of a table with three rows (Definition, Content Updation, Content Addition) and three columns (Category, Current Status, Suggestions). Present it as a JSON object with the following structure:
+    {{"results": [
+    {{"category": "Definition", "current_status": "...", "suggestions": "..."}},
+    {{"category": "Content Updation", "current_status": "...", "suggestions": "..."}},
+    {{"category": "Content Addition", "current_status": "...", "suggestions": "..."}}
+    ]}}
+    """
+
+    # Configure OpenAI client
+    client = openai.OpenAI(api_key=openai_api_key)
+    
+    # Call OpenAI API
+    try:
+        response = client.chat.completions.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an SEO specialist analyzing content gaps."},
+                {"role": "user", "content": prompt}
+            ],
+            temperature=0.7,
+            max_tokens=800
+        )
+        
+        # Extract and parse the response
+        response_text = response.choices[0].message.content.strip()
+        
+        # Try to find JSON pattern in the response
+        json_pattern = r'({.*})'
+        json_match = re.search(json_pattern, response_text, re.DOTALL)
+        
+        if json_match:
+            try:
+                # Parse the JSON
+                analysis_data = json.loads(json_match.group(0))
+                return analysis_data
+            except json.JSONDecodeError:
+                # If JSON parsing fails, return a formatted error
+                return {
+                    "results": [
+                        {"category": "Definition", "current_status": "Error parsing API response", "suggestions": "Please try again."},
+                        {"category": "Content Updation", "current_status": "Error parsing API response", "suggestions": "Please try again."},
+                        {"category": "Content Addition", "current_status": "Error parsing API response", "suggestions": "Please try again."}
+                    ]
+                }
+        else:
+            # If no JSON pattern found, structure response anyway
+            return {
+                "results": [
+                    {"category": "Definition", "current_status": "API response format error", "suggestions": "Please try again."},
+                    {"category": "Content Updation", "current_status": "API response format error", "suggestions": "Please try again."},
+                    {"category": "Content Addition", "current_status": "API response format error", "suggestions": "Please try again."}
+                ]
+            }
+            
+    except Exception as e:
+        # Return error information
+        return {
+            "results": [
+                {"category": "Definition", "current_status": f"API Error: {str(e)[:50]}...", "suggestions": "Please check your API key and try again."},
+                {"category": "Content Updation", "current_status": f"API Error: {str(e)[:50]}...", "suggestions": "Please check your API key and try again."},
+                {"category": "Content Addition", "current_status": f"API Error: {str(e)[:50]}...", "suggestions": "Please check your API key and try again."}
+            ]
+        }
 
 def get_alt_text_suggestion(current_img, page_url):
     """Get alt text suggestion from OpenAI API using the updated API (1.0.0+)."""
@@ -455,22 +631,22 @@ def analyze_target_content(target_url, serp_data):
         if response.status_code != 200:
             st.error(f"Warning: Received status code {response.status_code} from {target_url}.")
             return {"headers": [{"tag": "", "text": f"{response.status_code} Forbidden"}],
-                    "missing_headers": [], "images": [], "schema_table": [], "videos": []}
+                    "missing_headers": [], "images": [], "schema_table": [], "videos": [], 
+                    "full_content": f"Error: Status code {response.status_code}"}
         
         soup = BeautifulSoup(response.text, "html.parser")
         page_headers, images_in_range = get_headers_and_images_in_range(soup)
+        
+        # Extract full page content
+        full_page_content = extract_full_page_content(soup)
 
-         # Add suggested alt text to images
+        # The rest of the function remains the same...
         if images_in_range:
             for image in images_in_range:
-                
-                # Get alt text suggestion using OpenAI API
                 suggested_alt = get_alt_text_suggestion(
                     image.get("src", ""),
                     target_url
                 )
-                
-                # Add the suggestion to the image data
                 image["suggested_alt"] = suggested_alt
                 
         videos_in_range = get_embedded_videos(target_url)
@@ -489,7 +665,8 @@ def analyze_target_content(target_url, serp_data):
         missing_headers = compare_headers(page_headers, ai_overview_headers)
         
         return {"headers": page_headers, "missing_headers": missing_headers,
-                "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range}
+                "images": images_in_range, "schema_table": schema_table, "videos": videos_in_range,
+                "full_content": full_page_content}  # Add full content to return value
     except Exception as e:
         st.error(f"Error analyzing target content: {str(e)}")
         return {
@@ -497,7 +674,8 @@ def analyze_target_content(target_url, serp_data):
             "missing_headers": [],
             "images": [], 
             "schema_table": [], 
-            "videos": []
+            "videos": [],
+            "full_content": f"Error extracting content: {str(e)}"
         }
 
 def analyze_secondary_content(page_headers, serp_data):

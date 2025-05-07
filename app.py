@@ -2,7 +2,7 @@
 import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
-from utils import get_serp_results, extract_domain, search_youtube_video, analyze_secondary_content, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content, rank_titles_by_semantic_similarity
+from utils import get_serp_results, perform_content_gap_analysis, get_50serp_results, extract_domain, search_youtube_video, analyze_secondary_content, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content, rank_titles_by_semantic_similarity
 from report_generator import generate_docx_report, generate_pdf_report
 import requests
 
@@ -44,11 +44,12 @@ if submitted:
     try:
         with st.spinner("Fetching SERP data for keyword: " + keyword):
             serp_data = get_serp_results(keyword, SERPAPI_KEY)
+            serp_data_50 = get_50serp_results(keyword, SERPAPI_KEY)
             domain = extract_domain(target_url).lower()
             competitor_urls = extract_competitor_urls(serp_data)
-            ai_overview_competitors = get_ai_overview_competitors(serp_data, domain)
+            ai_overview_competitors = get_ai_overview_competitors(serp_data, serp_data_50, domain)
             domain_present = check_domain_in_ai_overview(serp_data, domain, target_url)
-            domain_organic_position = find_domain_position_in_organic(serp_data, domain)
+            domain_organic_position = find_domain_position_in_organic(serp_data_50, domain)
             domain_ai_position = find_domain_position_in_ai(serp_data, domain)
             competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
             ai_sources_in_organic_count = sum(1 for source in ai_overview_competitors if source.get("url", "") in competitor_urls_first20)
@@ -83,15 +84,17 @@ if submitted:
         content_data_secondary = {}
         secondary_ai_overview_competitors = {} 
         secondary_ai_overview_content = {}
+        secondary_serp_data_50 = {}
         
         for kw in secondary_keywords:
             with st.spinner(f"Fetching SERP data for secondary keyword: {kw}"):
                 serp_data_secondary[kw] = get_serp_results(kw, SERPAPI_KEY)
+                secondary_serp_data_50[kw] = get_50serp_results(kw, SERPAPI_KEY)
                 domain_present_secondary[kw] = check_domain_in_ai_overview(serp_data_secondary[kw], domain, target_url)
-                domain_organic_position_secondary[kw] = find_domain_position_in_organic(serp_data_secondary[kw], domain)
+                domain_organic_position_secondary[kw] = find_domain_position_in_organic(secondary_serp_data_50[kw], domain)
                 domain_ai_position_secondary[kw] = find_domain_position_in_ai(serp_data_secondary[kw], domain)
                 content_data_secondary[kw] = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
-                secondary_ai_overview_competitors[kw] = get_ai_overview_competitors(serp_data_secondary[kw], domain)
+                secondary_ai_overview_competitors[kw] = get_ai_overview_competitors(serp_data_secondary[kw], secondary_serp_data_50[kw], domain)
                 competitor_urls = extract_competitor_urls(serp_data_secondary[kw])
                 competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
                 ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in competitor_urls_first20)
@@ -104,6 +107,38 @@ if submitted:
                     popular_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
                 for site in REVIEW_SITES:
                     review_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
+
+        try:
+            # Access the API key from Streamlit's secrets for OpenAI
+            OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
+            if not OPENAI_API_KEY:
+                st.warning("OpenAI API Key not found in secrets. Content Gap Analysis will be skipped.")
+                content_gap_analysis = None
+                content_gap_secondary = {}
+            else:
+                # Perform content gap analysis for the main keyword using full page content
+                with st.spinner("Performing Content Gap Analysis..."):
+                    # Use the full page content instead of just headers
+                    full_page_content = content_data.get("full_content", "")
+                    
+                    content_gap_analysis = perform_content_gap_analysis(
+                        ai_overview_content, 
+                        full_page_content,
+                        OPENAI_API_KEY
+                    )
+                    
+                    # Perform content gap analysis for secondary keywords
+                    content_gap_secondary = {}
+                    for kw in secondary_keywords:
+                        content_gap_secondary[kw] = perform_content_gap_analysis(
+                            secondary_ai_overview_content.get(kw, ""),
+                            full_page_content,
+                            OPENAI_API_KEY
+                        )
+        except Exception as e:
+            st.error(f"Error performing content gap analysis: {str(e)}")
+            content_gap_analysis = None
+            content_gap_secondary = {}
 
         with st.spinner("Fetching social results from LinkedIn and Reddit..."):
             # Get social results
@@ -178,6 +213,8 @@ if submitted:
             "domain_ai_position_secondary": domain_ai_position_secondary,
             "content_data_secondary": content_data_secondary,
             "secondary_ai_overview_content": secondary_ai_overview_content,
+            "content_gap_analysis": content_gap_analysis,
+            "content_gap_secondary": content_gap_secondary,
             "aio_competitor_content": ai_overview_competitor_content
         }
         
