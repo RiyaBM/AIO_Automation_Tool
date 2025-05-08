@@ -182,6 +182,7 @@ def get_serp_results(keyword, serp_api_key):
     }
     response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
     st.info(response.status_code)
+    st.info(response.text)
 
     # Sanitize the JSON before parsing
     if response.status_code == 200:
