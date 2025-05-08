@@ -85,6 +85,7 @@ if submitted:
         secondary_ai_overview_competitors = {} 
         secondary_ai_overview_content = {}
         secondary_serp_data_50 = {}
+        all_aio_content = ai_overview_content + "\n\n"
         
         for kw in secondary_keywords:
             with st.spinner(f"Fetching SERP data for secondary keyword: {kw}"):
@@ -99,6 +100,7 @@ if submitted:
                 competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
                 ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in competitor_urls_first20)
                 secondary_ai_overview_content[kw] = get_ai_overview_content(serp_data_secondary[kw])
+                all_aio_content += f"AIO content for {kw}: " + secondary_ai_overview_content.get(kw, "") + "\n\n"
 
                 # Process site categories
                 for site in SOCIAL_SITES:
@@ -114,7 +116,6 @@ if submitted:
             if not OPENAI_API_KEY:
                 st.warning("OpenAI API Key not found in secrets. Content Gap Analysis will be skipped.")
                 content_gap_analysis = None
-                content_gap_secondary = {}
             else:
                 # Perform content gap analysis for the main keyword using full page content
                 with st.spinner("Performing Content Gap Analysis..."):
@@ -122,23 +123,14 @@ if submitted:
                     full_page_content = content_data.get("full_content", "")
                     
                     content_gap_analysis = perform_content_gap_analysis(
-                        ai_overview_content, 
+                        all_aio_content,
                         full_page_content,
                         OPENAI_API_KEY
                     )
                     
-                    # Perform content gap analysis for secondary keywords
-                    content_gap_secondary = {}
-                    for kw in secondary_keywords:
-                        content_gap_secondary[kw] = perform_content_gap_analysis(
-                            secondary_ai_overview_content.get(kw, ""),
-                            full_page_content,
-                            OPENAI_API_KEY
-                        )
         except Exception as e:
             st.error(f"Error performing content gap analysis: {str(e)}")
             content_gap_analysis = None
-            content_gap_secondary = {}
 
         with st.spinner("Fetching social results from LinkedIn and Reddit..."):
             # Get social results
@@ -214,7 +206,6 @@ if submitted:
             "content_data_secondary": content_data_secondary,
             "secondary_ai_overview_content": secondary_ai_overview_content,
             "content_gap_analysis": content_gap_analysis,
-            "content_gap_secondary": content_gap_secondary,
             "aio_competitor_content": ai_overview_competitor_content
         }
         

@@ -274,31 +274,6 @@ def generate_docx_report(data, domain, output_file="aio_report.docx"):
     else:
         document.add_paragraph("No content gap analysis available.")
     
-    # Secondary keywords content gap analysis
-    secondary_keywords = data.get("secondary_keywords", [])
-    content_gap_secondary = data.get("content_gap_secondary", {})
-    
-    for kw in secondary_keywords:
-        if kw in content_gap_secondary and content_gap_secondary[kw].get("results"):
-            document.add_heading(f"Content Gap Analysis for: {kw}", level=4)
-            
-            # Create a table for this keyword's content gap analysis
-            gap_table = document.add_table(rows=1, cols=3)
-            gap_table.style = 'Table Grid'
-            
-            # Add headers
-            hdr_cells = gap_table.rows[0].cells
-            hdr_cells[0].text = "Category"
-            hdr_cells[1].text = "Current Status"
-            hdr_cells[2].text = "Suggestions"
-            
-            # Add data rows
-            for result in content_gap_secondary[kw]["results"]:
-                row_cells = gap_table.add_row().cells
-                row_cells[0].text = result.get("category", "")
-                row_cells[1].text = result.get("current_status", "")
-                row_cells[2].text = result.get("suggestions", "")
-
     document.add_heading("Missing Headers (compared to AI Overview)", level=3)
     if data.get("content_analysis", {}).get("missing_headers"):
         document.add_paragraph(f"Missing Headers for keyword:: {data.get('keyword', 'Main Keyword')}:", style="List Bullet")
