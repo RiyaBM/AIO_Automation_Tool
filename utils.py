@@ -117,12 +117,15 @@ def check_domain_in_ai_overview(serp_data, domain, url):
     return domain_found
 
 def is_domain_match(url, target_domain):
+        st.info("TARGET::::")
+        st.info(target_domain)
         if not url:
             return False
             
         parsed = urlparse(url.lower())
         url_domain = parsed.netloc.replace('www.', '')
-        
+        st.info("URL::::")
+        st.info(url_domain)
         # Direct match
         if url_domain == target_domain:
             return True
@@ -141,17 +144,13 @@ def is_domain_match(url, target_domain):
 def find_domain_position_in_organic(serp_data, domain):
      # Normalize the domain
     domain = domain.lower().replace('www.', '')
-    st.info(serp_data)
 
     # Check the current page of results
     if "organic_results" in serp_data:
-        st.info("find_domain_position_in_organic")
         for i, result in enumerate(serp_data["organic_results"]):
             link = result.get("link", "")
-            st.info(link)
             if is_domain_match(link, domain):
                 return i + 1  # Found the domain at position i+1
-        st.info("END-------------------------------------")    
         # If not found in current results, return "> 50"
         return "> 50"
     # No organic results found
