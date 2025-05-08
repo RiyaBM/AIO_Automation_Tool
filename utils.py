@@ -144,11 +144,13 @@ def find_domain_position_in_organic(serp_data, domain):
 
     # Check the current page of results
     if "organic_results" in serp_data:
+        st.info("find_domain_position_in_organic")
         for i, result in enumerate(serp_data["organic_results"]):
             link = result.get("link", "")
+            st.info(link)
             if is_domain_match(link, domain):
                 return i + 1  # Found the domain at position i+1
-            
+        st.info("END-------------------------------------")    
         # If not found in current results, return "> 50"
         return "> 50"
     # No organic results found
