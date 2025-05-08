@@ -177,6 +177,7 @@ def get_serp_results(keyword, serp_api_key):
         })
         
         result = search.get_dict()
+        st.info(result)
         return result
     except Exception as e:
         st.error(f"SerpAPI search failed: {str(e)}")
