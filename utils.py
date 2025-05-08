@@ -136,6 +136,8 @@ def is_domain_match(url, target_domain):
             
         # Check if domain is a significant part
         domain_parts = url_domain.split('.')
+        st.info("DOMAIN PARTS_----------------")
+        st.info(domain_parts)
         if target_domain in domain_parts:
             return True
             
