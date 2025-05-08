@@ -117,15 +117,11 @@ def check_domain_in_ai_overview(serp_data, domain, url):
     return domain_found
 
 def is_domain_match(url, target_domain):
-        st.info("TARGET::::")
-        st.info(target_domain)
         if not url:
             return False
             
         parsed = urlparse(url.lower())
         url_domain = parsed.netloc.replace('www.', '')
-        st.info("URL::::")
-        st.info(url_domain)
         # Direct match
         if url_domain == target_domain:
             return True
@@ -136,8 +132,6 @@ def is_domain_match(url, target_domain):
             
         # Check if domain is a significant part
         domain_parts = url_domain.split('.')
-        st.info("DOMAIN PARTS_----------------")
-        st.info(domain_parts)
         if target_domain in domain_parts:
             return True
             
