@@ -141,6 +141,7 @@ def is_domain_match(url, target_domain):
 def find_domain_position_in_organic(serp_data, domain):
      # Normalize the domain
     domain = domain.lower().replace('www.', '')
+    st.info(serp_data)
 
     # Check the current page of results
     if "organic_results" in serp_data:
@@ -224,7 +225,6 @@ def get_ai_overview_competitors(serp_data, serp_data50, competitor_key):
             for ref in ai_overview["references"]:
                 if "link" in ref:
                     trimmed_link = trim_url(ref["link"])
-                    st.info(trimmed_link.lower())
                     position = find_domain_position_in_organic(serp_data50, trimmed_link.lower())
                     citation = ref_indexes.get(ref.get("index"))
                     entry = {
