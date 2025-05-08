@@ -177,7 +177,6 @@ def get_serp_results(keyword, serp_api_key):
         })
         
         result = search.get_dict()
-        st.info(result)
         return result
     except Exception as e:
         st.error(f"SerpAPI search failed: {str(e)}")
@@ -400,25 +399,45 @@ def get_embedded_videos(url):
         return []
 
 def search_youtube_video(keyword, domain, serp_api_key=None):
-    yt_channel = YOUTUBE_CHANNEL.get(domain, domain)  # Use the mapped channel or fallback to domain
-    query = f"https://www.youtube.com/{yt_channel} {keyword}"
+    """
+    Search for YouTube videos from a specific channel related to a keyword
+    using SerpAPI's official client.
     
-    search_url = f"https://serpapi.com/search.json?engine=youtube&search_query={query}&api_key={serp_api_key}"
-    
+    Args:
+        keyword (str): The search term
+        domain (str): The domain or channel identifier
+        serp_api_key (str): SerpAPI key for authentication
+        
+    Returns:
+        str: Title and link of the top result or error message
+    """
     try:
-        response = requests.get(search_url)
-        response.raise_for_status()
-        data = response.json()
-
+        # Get the YouTube channel ID from the mapping or use domain as fallback
+        yt_channel = YOUTUBE_CHANNEL.get(domain, domain)
+        
+        # Prepare the search query
+        query = f"https://www.youtube.com/{yt_channel} {keyword}"
+        
+        # Set up the search parameters for YouTube search
+        search_params = {
+            "engine": "youtube",
+            "search_query": query,
+            "api_key": serp_api_key
+        }
+        
+        # Create and execute the search
+        search = GoogleSearch(search_params)
+        data = search.get_dict()
+        
         # Extract the first video result
         if "video_results" in data and data["video_results"]:
             top_video = data["video_results"][0]
             return f"{top_video['title']}: {top_video['link']}"
         else:
             return "No relevant video found."
-    
-    except requests.RequestException as e:
-        return f"Error fetching YouTube video: {e}"
+            
+    except Exception as e:
+        return f"Error fetching YouTube video: {str(e)}"
 
    
 def extract_full_page_content(soup):
@@ -559,7 +578,7 @@ def perform_content_gap_analysis(ai_overview_content, page_content, openai_api_k
         
         # Extract and parse the response
         response_text = response.choices[0].message.content.strip()
-        
+
         # Try to find JSON pattern in the response
         json_pattern = r'({.*})'
         json_match = re.search(json_pattern, response_text, re.DOTALL)
@@ -749,17 +768,51 @@ def get_competitors_content(competitors):
     return competitor_content
 
 def get_social_results(keyword, site, limit_max=5, serp_api_key=None):
+    """
+    Get search results from a specific site using SerpAPI's GoogleSearch client.
+    
+    Args:
+        keyword (str): The search term
+        site (str): The site to search within (e.g., "twitter.com")
+        limit_max (int): Maximum number of results to return
+        serp_api_key (str): SerpAPI key for authentication
+        
+    Returns:
+        list: List of dictionaries with title and link of search results
+    """
+    # Construct the search query with site: operator
     query = f"site:{site} {keyword}"
-    params = {"engine": "google", "q": query, "hl": "en", "gl": "us", "api_key": serp_api_key}
-    response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    data = response.json()
-    results = []
-    if "organic_results" in data:
-        for result in data["organic_results"]:
-            results.append({"title": result.get("title", "No Title"), "link": result.get("link", "")})
-            if len(results) >= limit_max:
-                break
-    return results
+    
+    # Set up the search parameters
+    search_params = {
+        "engine": "google",
+        "q": query,
+        "hl": "en",
+        "gl": "us",
+        "api_key": serp_api_key
+    }
+    
+    try:
+        # Create and execute the search
+        search = GoogleSearch(search_params)
+        data = search.get_dict()
+        
+        # Extract and format the results
+        results = []
+        if "organic_results" in data:
+            for result in data["organic_results"]:
+                results.append({
+                    "title": result.get("title", "No Title"),
+                    "link": result.get("link", "")
+                })
+                if len(results) >= limit_max:
+                    break
+        
+        return results
+    except Exception as e:
+        # Handle any exceptions that might occur
+        print(f"Error with SerpAPI search: {str(e)}")
+        return []
 
 def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
     """
@@ -800,29 +853,67 @@ def rank_titles_by_semantic_similarity(primary_keyword, titles, threshold=0.75):
         return [(title, 0.8) for title in titles]
 
 def get_youtube_results(keyword, limit_max=5, serp_api_key=None):
-    query = f"site:youtube.com {keyword}"
-    params = {"engine": "google", "q": query, "hl": "en", "gl": "us", "api_key": serp_api_key}
-    response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    data = response.json()
-    results = []
-    if "organic_results" in data:
-        for result in data["organic_results"]:
-            key_moments_raw = result.get("key_moments", None)
-            if key_moments_raw and isinstance(key_moments_raw, list):
-                key_moments = "\n".join([f"• {km.get('time', '')} - {km.get('title', '')}" for km in key_moments_raw])
-            else:
-                key_moments = "Key Moments not found for video."
-            source_raw = result.get("source", "")
-            source_processed = source_raw.split("·")[-1].strip() if "·" in source_raw else source_raw
-            results.append({"title": result.get("title", "No Title"),
-                            "link": result.get("link", ""),
-                            "displayed_link": result.get("displayed_link", ""),
-                            "source": source_processed,
-                            "snippet": result.get("snippet", ""),
-                            "key_moments": key_moments})
-            if len(results) >= limit_max:
-                break
-    return results
+    """
+    Get YouTube search results using SerpAPI's GoogleSearch client.
+    
+    Args:
+        keyword (str): The search term
+        limit_max (int): Maximum number of results to return
+        serp_api_key (str): SerpAPI key for authentication
+        
+    Returns:
+        list: List of dictionaries with YouTube video details
+    """
+    try:
+        # Create the query with site: operator for YouTube
+        query = f"site:youtube.com {keyword}"
+        
+        # Set up search parameters
+        search_params = {
+            "engine": "google",
+            "q": query,
+            "hl": "en",
+            "gl": "us",
+            "api_key": serp_api_key
+        }
+        
+        # Execute the search using the official client
+        search = GoogleSearch(search_params)
+        data = search.get_dict()
+        
+        results = []
+        if "organic_results" in data:
+            for result in data["organic_results"]:
+                # Process key moments if available
+                key_moments_raw = result.get("key_moments", None)
+                if key_moments_raw and isinstance(key_moments_raw, list):
+                    key_moments = "\n".join([f"• {km.get('time', '')} - {km.get('title', '')}" for km in key_moments_raw])
+                else:
+                    key_moments = "Key Moments not found for video."
+                
+                # Process source information
+                source_raw = result.get("source", "")
+                source_processed = source_raw.split("·")[-1].strip() if "·" in source_raw else source_raw
+                
+                # Compile the result
+                results.append({
+                    "title": result.get("title", "No Title"),
+                    "link": result.get("link", ""),
+                    "displayed_link": result.get("displayed_link", ""),
+                    "source": source_processed,
+                    "snippet": result.get("snippet", ""),
+                    "key_moments": key_moments
+                })
+                
+                # Limit the number of results
+                if len(results) >= limit_max:
+                    break
+                    
+        return results
+        
+    except Exception as e:
+        print(f"Error fetching YouTube search results: {str(e)}")
+        return []
 
 def add_hyperlink(paragraph, url, text):
     """
