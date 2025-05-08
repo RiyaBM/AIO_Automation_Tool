@@ -12,3 +12,4 @@ requests-html
 lxml_html_clean
 aiohttp
 openai>=0.27.0
+google-search-results

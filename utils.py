@@ -20,6 +20,7 @@ from urllib.parse import urlparse, parse_qs
 # Extract JSON from the response
 import re
 import openai
+from serpapi import GoogleSearch
             
 load_dotenv()
 
@@ -165,55 +166,40 @@ def find_domain_position_in_ai(serp_data, domain):
         return "Not Ranking"  # Return "Not Ranking" if domain not found in AI references
     return "AI Not Appearing"  # Return "AI Not Appearing" if no AI overview exists
 
-def sanitize_json_string(json_string):
-    if not json_string:
-        return "{}"
-    # Remove control characters that cause parsing failures
-    sanitized = re.sub(r'[\x00-\x1F\x7F]', '', json_string)
-    return sanitized
-
 def get_serp_results(keyword, serp_api_key):
-    params = {
-        "engine": "google",
-        "hl": "en",
-        "gl": "us",
-        "q": keyword,
-        "api_key": serp_api_key,
-    }
-    response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    st.info(response.status_code)
-    st.info(response.text)
-
-    # Sanitize the JSON before parsing
-    if response.status_code == 200:
-        sanitized_text = sanitize_json_string(response.text)
     try:
-        result = json.loads(sanitized_text)
+        search = GoogleSearch({
+            "q": keyword,
+            "api_key": serp_api_key,
+            "engine": "google",
+            "hl": "en",
+            "gl": "us"
+        })
+        
+        result = search.get_dict()
         return result
-    except json.JSONDecodeError as e:
-        st.error(f"Failed to parse SERP API response: {str(e)}")
-        # Return empty results as fallback
+    except Exception as e:
+        st.error(f"SerpAPI search failed: {str(e)}")
         return {"organic_results": [], "pagination": {}}
     
 def get_50serp_results(keyword, serp_api_key):
-    params = {
-        "engine": "google",
-        "hl": "en",
-        "gl": "us",
-        "q": keyword,
-        "start": 0,
-        "num": 50,
-        "api_key": serp_api_key,
-    }
-    response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    sanitized_text = sanitize_json_string(response.text)
     try:
-        result = json.loads(sanitized_text)
+        search = GoogleSearch({
+            "engine": "google",
+            "hl": "en",
+            "gl": "us",
+            "q": keyword,
+            "start": 0,
+            "num": 50,
+            "api_key": serp_api_key
+        })
+        
+        result = search.get_dict()
         return result
-    except json.JSONDecodeError as e:
-        st.error(f"Failed to parse SERP API response: {str(e)}")
-        # Return empty results as fallback
+    except Exception as e:
+        st.error(f"SerpAPI search failed: {str(e)}")
         return {"organic_results": [], "pagination": {}}
+    
 
 def extract_competitor_urls(serp_data):
     competitor_urls = []
