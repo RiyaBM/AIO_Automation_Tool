@@ -165,6 +165,13 @@ def find_domain_position_in_ai(serp_data, domain):
         return "Not Ranking"  # Return "Not Ranking" if domain not found in AI references
     return "AI Not Appearing"  # Return "AI Not Appearing" if no AI overview exists
 
+def sanitize_json_string(json_string):
+    if not json_string:
+        return "{}"
+    # Remove control characters that cause parsing failures
+    sanitized = re.sub(r'[\x00-\x1F\x7F]', '', json_string)
+    return sanitized
+
 def get_serp_results(keyword, serp_api_key):
     params = {
         "engine": "google",
@@ -174,8 +181,16 @@ def get_serp_results(keyword, serp_api_key):
         "api_key": serp_api_key,
     }
     response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    return response.json()
-
+    # Sanitize the JSON before parsing
+    sanitized_text = sanitize_json_string(response.text)
+    try:
+        result = json.loads(sanitized_text)
+        return result
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse SERP API response: {str(e)}")
+        # Return empty results as fallback
+        return {"organic_results": [], "pagination": {}}
+    
 def get_50serp_results(keyword, serp_api_key):
     params = {
         "engine": "google",
@@ -187,7 +202,14 @@ def get_50serp_results(keyword, serp_api_key):
         "api_key": serp_api_key,
     }
     response = requests.get("https://serpapi.com/search", params=params, headers=HEADERS)
-    return response.json()
+    sanitized_text = sanitize_json_string(response.text)
+    try:
+        result = json.loads(sanitized_text)
+        return result
+    except json.JSONDecodeError as e:
+        st.error(f"Failed to parse SERP API response: {str(e)}")
+        # Return empty results as fallback
+        return {"organic_results": [], "pagination": {}}
 
 def extract_competitor_urls(serp_data):
     competitor_urls = []
