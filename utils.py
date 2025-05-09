@@ -607,6 +607,7 @@ def perform_content_gap_analysis(ai_overview_content, page_content, unique_urls,
             }
             
     except Exception as e:
+        st.info(prompt)
         # Return error information
         return {
             "results": [
