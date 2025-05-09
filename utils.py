@@ -516,7 +516,7 @@ def extract_full_page_content(soup):
     
     return page_content.strip()
 
-def perform_content_gap_analysis(ai_overview_content, page_content, openai_api_key):
+def perform_content_gap_analysis(ai_overview_content, page_content, unique_urls, openai_api_key):
     # Create the prompt for OpenAI API
     prompt = f"""
     * **Objective:** Identify content gaps between the AIO summary and the content on the page, and categorize critical issues under "Definition," "Content Updation," and "Content Addition." Provide actionable suggestions for improvement and cite relevant references to align with the AIO summary.
@@ -550,6 +550,7 @@ def perform_content_gap_analysis(ai_overview_content, page_content, openai_api_k
 
     Page Content: {page_content}
     AI overview summary for keywords: {ai_overview_content}
+    AI overview citation urls for references: {unique_urls}
 
     Based on the above content, provide a content gap analysis in the format of a table with three rows (Definition, Content Updation, Content Addition) and three columns (Category, Current Status, Suggestions). Present it as a JSON object with the following structure:
     {{"results": [
@@ -623,7 +624,6 @@ def get_alt_text_suggestion(current_img, page_url):
         if not openai_api_key:
             return "OpenAI API key not configured"
         
-        import openai
         client = openai.OpenAI(api_key=openai_api_key)
         
         prompt = f"""create an alt text for this image in max 10 to 15 words that's in one line,

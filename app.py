@@ -111,6 +111,25 @@ if submitted:
                     review_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
 
         try:
+            # Combine all AI Overview competitors
+            all_ai_competitors = ai_overview_competitors.copy()
+            
+            # Add sources from secondary keywords with keyword labeling
+            for keyword, competitors in secondary_ai_overview_competitors.items():
+                for competitor in competitors:
+                    # Add keyword info to the competitor
+                    competitor_with_keyword = competitor.copy()
+                    competitor_with_keyword["keyword"] = keyword
+                    all_ai_competitors.append(competitor_with_keyword)
+            
+            # Remove duplicates based on URL
+            unique_urls = set()
+            
+            for competitor in all_ai_competitors:
+                url = competitor.get("url")
+                if url and url not in unique_urls:
+                    unique_urls.add(url)
+            
             # Access the API key from Streamlit's secrets for OpenAI
             OPENAI_API_KEY = st.secrets.get("OPENAI_API_KEY")
             if not OPENAI_API_KEY:
@@ -125,6 +144,7 @@ if submitted:
                     content_gap_analysis = perform_content_gap_analysis(
                         all_aio_content,
                         full_page_content,
+                        unique_urls,
                         OPENAI_API_KEY
                     )
                     
