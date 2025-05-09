@@ -119,7 +119,7 @@ def check_domain_in_ai_overview(serp_data, domain, url):
 def is_domain_match(url, target_domain):
         if not url:
             return False
-        st.info("Smile please:)")    
+        
         parsed = urlparse(url.lower())
         url_domain = parsed.netloc.replace('www.', '')
         # Direct match
