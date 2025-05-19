@@ -120,19 +120,32 @@ def is_domain_match(url, target_domain):
         if not url:
             return False
         
+        
+        
+        
         parsed = urlparse(url.lower())
         url_domain = parsed.netloc.replace('www.', '')
+        
         # Direct match
         if url_domain == target_domain:
+            st.info("url_domain == target_domain:")
+            st.info("url domain:: {url_domain}")
+            st.info("taget domain::  {target_domain}")
             return True
             
         # Subdomain match
         if url_domain.endswith('.' + target_domain):
+            st.info("url_domain.endswith('.' + target_domain):")
+            st.info("url domain:: {url_domain}")
+            st.info("taget domain:: {target_domain}")
             return True
             
         # Check if domain is a significant part
         domain_parts = url_domain.split('.')
         if target_domain in domain_parts:
+            st.info("target_domain in domain_parts:")
+            st.info(f"domain parts:: {domain_parts}")
+            st.info(f"target domain:: {target_domain}")
             return True
             
         return False
@@ -517,40 +530,89 @@ def extract_full_page_content(soup):
     return page_content.strip()
 
 def perform_content_gap_analysis(ai_overview_content, page_content, unique_urls, openai_api_key):
+    """
+    Generate a content gap analysis using OpenAI API.
+    
+    Args:
+        ai_overview_content (str): AI overview content.
+        page_content (str): Page content to analyze.
+        unique_urls (list): List of unique URLs.
+        openai_api_key (str): OpenAI API key.
+        
+    Returns:
+        dict: The content gap analysis results.
+    """
     # Create the prompt for OpenAI API
     prompt = f"""
-    * **Objective:** Identify content gaps between the AIO summary and the content on the page, and categorize critical issues under "Definition," "Content Updation," and "Content Addition." Provide actionable suggestions for improvement and cite relevant references to align with the AIO summary.
-    * **Categories to Analyze:**
-    * **Definition:**
-        * **Current Status:** Is the definition related to the topic available on the page? If yes, is it contextually aligned with the AIO summary?
-        * **Suggested Status:**
-            * If the definition is missing, suggest adding a concise, relevant definition.
-            * If the definition is not contextually aligned, suggest revising it and provide citation from the AIO summary.
-            * If the definition is fine, indicate it with "-".
-    * **Content Updation:**
-        * **Current Status:**
-            * Identify which content is partially discussed compared to the AIO summary.
-            * Identify if any part of the page is text-heavy or lacks readability (e.g., long paragraphs or dense information).
-        * **Suggested Status:**
-            * Suggest which existing sections need expanded content or updates.
-            * Propose formatting changes such as breaking content into **numbered lists**, **bullet points**, etc., for improved readability.
-            * If no content updates are needed, leave it as "-".
-    * **Content Addition:**
-        * **Current Status:** Identify critical headers or topics that are missing on the page.
-        * **Suggested Status:**
-            * Suggest adding new headers, sub-headers, or FAQ questions to cover missing topics.
-            * Mention where exactly these additions should be placed on the page.
-            * Provide citation references from AIO summary for content suggestions.
-            * If no content updates are needed, leave it as "-".
-    * **Expected Format:**
-    * Provide a **table format** with three columns:
-        * **Category** (Definition, Content Updation, Content Addition)
-        * **Current Status** (Current state of the content on the page)
-        * **Suggestions** (Improvement suggestions, including specific references for AIO summary alignment)
+    * **Objective:** Identify content gaps between the AI overview summary and the provided page content under three categories: Definition, Content Updation, and Content Addition. Provide only concise, actionable suggestions prioritized by relevance and impact, including references.
 
-    Page Content: {page_content}
-    AI overview summary for keywords: {ai_overview_content}
-    AI overview citation urls for references: {unique_urls}
+    **Instructions:**
+
+    * For each category, summarize the current status in 1–2 sentences, focusing on major gaps only.
+
+    * Provide clear, specific, actionable suggestions—no generic advice or long explanations.
+
+    * Use exact placement recommendations (e.g., “Add after section X”).
+
+    * Include reference URLs in each suggestion as: Reference: [URL].
+
+    * If no update or addition is needed, put a single dash -.
+
+    * Output results strictly as a markdown table with these three columns: Category, Current Status (Brief), Suggestions (Short, actionable, reference included).
+
+    * Avoid repeating minor details; prioritize what will most improve content quality and alignment with the AI overview.
+    
+  * **Categories to Analyze:**
+  * **Definition:**
+
+    * **Current Status:** Is the definition related to the topic available on the page? If yes, is it contextually aligned with the AIO summary?
+    * **Suggested Status:**
+
+      * If the definition is missing, suggest adding a concise, relevant definition.
+      * If the definition is not contextually aligned, suggest revising it.
+      * In the Suggestions column, please include references by stating ‘Reference: [URL]’ from the provided URL list, matching the relevant point.
+      * suggestions should be short and crisp mentioning what has to be done clearly.
+      * If the definition requires no updates, keep it with blank "-".
+  * **Content Updation:**
+
+    * **Current Status:**
+
+      * Identify which content is partially discussed compared to the AIO summary.
+      * Identify if any part of the page is text-heavy or lacks readability (e.g., long paragraphs or dense information).
+      * Provide list of headers from Page_content that require updates.
+* **Suggested Status:**
+
+  
+* Suggest which existing sections need expanded content or updates.
+  * Propose formatting changes such as breaking content into **numbered lists**, **bullet points**, etc., for improved readability.
+  * In the Suggestions column, please include references by stating ‘Reference: [URL]’ from the provided URL list, matching the relevant point.
+  * if there are multiple suggestions provide in points. and each point should mention clearly where the update has to be implemented.
+  * suggestions should be short and crisp mentioning what has to be done clearly.
+  * If no content updates are needed, leave it as blank "-".
+
+
+  * **Content Addition:**
+
+    * **Current Status:** Identify critical headers or topics that are missing on the page.
+    * **Suggested Status:**
+
+      * Suggest adding new headers, sub-headers, or FAQ questions to cover missing topics.
+      * Mention where exactly these additions should be placed on the page.
+      * In the Suggestions column, please include references by stating ‘Reference: \[URL]’ from the provided URL list, matching the relevant point.
+      * if there are multiple suggestions provide in points. and each point should mention where the new content has to be added on page.
+      * suggestions should be short and crisp mentioning what has to be done clearly.
+      * if suggesting to add FAQ, provide exact question what has to be added.
+      * If no content updates are needed, leave it as blank "-".
+  * **Expected Format:**
+  * Provide a **table format** with three columns:
+
+    * **Category** (Definition, Content Updation, Content Addition)
+    * **Current Status** (Current state of the content on the page)
+    * **Suggestions** (Improvement suggestions, including specific references for AIO summary alignment)
+
+  Page Content: {page_content}
+  AI overview summary for keywords: {ai_overview_content}
+  AI overview citation urls for references: {unique_urls}
 
     Based on the above content, provide a content gap analysis in the format of a table with three rows (Definition, Content Updation, Content Addition) and three columns (Category, Current Status, Suggestions). Present it as a JSON object with the following structure:
     {{"results": [
@@ -566,7 +628,7 @@ def perform_content_gap_analysis(ai_overview_content, page_content, unique_urls,
     # Call OpenAI API
     try:
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model="gpt-3.5-turbo-0125",  # Updated model name to the latest available version
             messages=[
                 {"role": "system", "content": "You are an SEO specialist analyzing content gaps."},
                 {"role": "user", "content": prompt}
@@ -607,7 +669,7 @@ def perform_content_gap_analysis(ai_overview_content, page_content, unique_urls,
             }
             
     except Exception as e:
-        st.info(prompt)
+        st.error(f"OpenAI API Error: {str(e)}")
         # Return error information
         return {
             "results": [

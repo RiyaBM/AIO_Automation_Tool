@@ -3,8 +3,7 @@ import os
 import streamlit as st
 from docx.opc.constants import RELATIONSHIP_TYPE
 from utils import get_serp_results, perform_content_gap_analysis, get_50serp_results, extract_domain, search_youtube_video, analyze_secondary_content, get_ai_overview_othersites, get_competitors_content, extract_competitor_urls, get_ai_overview_competitors, get_ai_overview_questions, check_domain_in_ai_overview, find_domain_position_in_organic, find_domain_position_in_ai, trim_url, get_ai_overview_content, analyze_target_content, get_social_results, get_youtube_results, get_ai_overview_competitors_content, rank_titles_by_semantic_similarity
-from report_generator import generate_docx_report, generate_pdf_report
-import requests
+from report_generator import generate_docx_report
 
 SOCIAL_SITES = ["youtube", "linkedin", "reddit", "quora"]
 POPULAR_SITES = ["forbes", "pcmag", "techradar", "businessinsider", "techrepublic", "lifewire", "nytimes", "itpro", "macworld", "zdnet", "thectoclub", "techimply"]
@@ -21,6 +20,7 @@ st.title("SEO AI Analysis Report Generator")
 social_ai_overviews = {}
 popular_ai_overviews = {}
 review_ai_overviews = {}
+
 # User inputs for analysis
 with st.form("analysis_form"):
     st.markdown("### Enter the following details to run the full SEO analysis:")
@@ -31,6 +31,13 @@ with st.form("analysis_form"):
     submitted = st.form_submit_button("Run Analysis")
     
 if submitted:
+    # Initialize secondary_keywords right at the beginning
+    secondary_keywords = [kw.strip() for kw in s_Keyword.split(',') if kw.strip()]
+    
+    if len(secondary_keywords) > 5:
+        st.warning("You entered more than 5 secondary keywords. Only the first 5 will be used.")
+        secondary_keywords = secondary_keywords[:5]
+    
     # Access the API key from Streamlit's secrets
     try:
         SERPAPI_KEY = st.secrets["SERPAPI_KEY"]
@@ -42,6 +49,16 @@ if submitted:
         st.stop()
         
     try:
+        # Initialize dictionaries for secondary keyword data
+        serp_data_secondary = {}
+        domain_present_secondary = {}
+        domain_organic_position_secondary = {}
+        domain_ai_position_secondary = {}
+        content_data_secondary = {}
+        secondary_ai_overview_competitors = {} 
+        secondary_ai_overview_content = {}
+        secondary_serp_data_50 = {}
+        
         with st.spinner("Fetching SERP data for keyword: " + keyword):
             serp_data = get_serp_results(keyword, SERPAPI_KEY)
             serp_data_50 = get_50serp_results(keyword, SERPAPI_KEY)
@@ -66,27 +83,13 @@ if submitted:
                 
             people_also_ask_ai_overview = get_ai_overview_questions(serp_data)
 
-        # Process secondary keywords
-        secondary_keywords = [kw.strip() for kw in s_Keyword.split(',') if kw.strip()]
-
-        if len(secondary_keywords) > 5:
-            st.warning("You entered more than 5 secondary keywords. Only the first 5 will be used.")
-            secondary_keywords = secondary_keywords[:5]
-
         with st.spinner("Analyzing target URL content..."):
             content_data = analyze_target_content(target_url, serp_data)
 
-        # Process secondary keywords
-        serp_data_secondary = {}
-        domain_present_secondary = {}
-        domain_organic_position_secondary = {}
-        domain_ai_position_secondary = {}
-        content_data_secondary = {}
-        secondary_ai_overview_competitors = {} 
-        secondary_ai_overview_content = {}
-        secondary_serp_data_50 = {}
+        # Initialize all_aio_content with primary keyword content
         all_aio_content = ai_overview_content + "\n\n"
         
+        # Process secondary keywords
         for kw in secondary_keywords:
             with st.spinner(f"Fetching SERP data for secondary keyword: {kw}"):
                 serp_data_secondary[kw] = get_serp_results(kw, SERPAPI_KEY)
@@ -96,13 +99,17 @@ if submitted:
                 domain_ai_position_secondary[kw] = find_domain_position_in_ai(serp_data_secondary[kw], domain)
                 content_data_secondary[kw] = analyze_secondary_content(content_data["headers"], serp_data_secondary[kw])
                 secondary_ai_overview_competitors[kw] = get_ai_overview_competitors(serp_data_secondary[kw], secondary_serp_data_50[kw], domain)
-                competitor_urls = extract_competitor_urls(serp_data_secondary[kw])
-                competitor_urls_first20 = [trim_url(url) for url in competitor_urls[:20]]
-                ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in competitor_urls_first20)
+                
+                # Get secondary keyword competitor URLs
+                sec_competitor_urls = extract_competitor_urls(serp_data_secondary[kw])
+                sec_competitor_urls_first20 = [trim_url(url) for url in sec_competitor_urls[:20]]
+                ai_sources_in_organic_count += sum(1 for source in secondary_ai_overview_competitors[kw] if source.get("url", "") in sec_competitor_urls_first20)
+                
+                # Get and store secondary AI overview content
                 secondary_ai_overview_content[kw] = get_ai_overview_content(serp_data_secondary[kw])
                 all_aio_content += f"AIO content for {kw}: " + secondary_ai_overview_content.get(kw, "") + "\n\n"
 
-                # Process site categories
+                # Process site categories for secondary keywords
                 for site in SOCIAL_SITES:
                     social_ai_overviews[site].extend(get_ai_overview_othersites(serp_data_secondary[kw], site)) 
                 for site in POPULAR_SITES:
@@ -115,11 +122,11 @@ if submitted:
             all_ai_competitors = ai_overview_competitors.copy()
             
             # Add sources from secondary keywords with keyword labeling
-            for keyword, competitors in secondary_ai_overview_competitors.items():
+            for keyword_sec, competitors in secondary_ai_overview_competitors.items():
                 for competitor in competitors:
                     # Add keyword info to the competitor
                     competitor_with_keyword = competitor.copy()
-                    competitor_with_keyword["keyword"] = keyword
+                    competitor_with_keyword["keyword"] = keyword_sec
                     all_ai_competitors.append(competitor_with_keyword)
             
             # Remove duplicates based on URL
@@ -160,12 +167,13 @@ if submitted:
             # Get YouTube info
             relevant_video = search_youtube_video(keyword, domain, serp_api_key=SERPAPI_KEY)
             
-            # Perform semantic ranking
-            linkedin_titles = [r["title"] for r in linkedin_results]
-            reddit_titles = [r["title"] for r in reddit_results]
+            # Initialize lists for titles - handle empty results
+            linkedin_titles = [r["title"] for r in linkedin_results] if linkedin_results else []
+            reddit_titles = [r["title"] for r in reddit_results] if reddit_results else []
             
-            ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.6)
-            ranked_reddit_titles = rank_titles_by_semantic_similarity(keyword, reddit_titles, threshold=0.6)
+            # Perform semantic ranking when we have results
+            ranked_linkedin_titles = rank_titles_by_semantic_similarity(keyword, linkedin_titles, threshold=0.6) if linkedin_titles else []
+            ranked_reddit_titles = rank_titles_by_semantic_similarity(keyword, reddit_titles, threshold=0.6) if reddit_titles else []
             
             # Format social channel data with links
             social_channels = [
@@ -255,18 +263,6 @@ if submitted:
             else:
                 st.error("Error generating DOCX report. Please try again.")
 
-        with st.spinner("Generating PDF Report..."):
-            try:
-                pdf_path = generate_pdf_report(report_data)
-                if pdf_path.endswith(".pdf"):
-                    with open(pdf_path, "rb") as file:
-                        st.download_button("Download PDF Report", data=file, file_name=pdf_output_file, mime="application/pdf")
-                else:
-                    # Handle HTML fallback case
-                    with open(pdf_path, "rb") as file:
-                        st.download_button("Download HTML Report", data=file, file_name=pdf_path.split("/")[-1], mime="text/html")
-            except Exception as e:
-                st.error(f"Error generating PDF report: {str(e)}")
     except Exception as e:
         st.error(f"An error occurred during analysis: {str(e)}")
         st.info("Please check your inputs and try again.")
