@@ -128,24 +128,15 @@ def is_domain_match(url, target_domain):
         
         # Direct match
         if url_domain == target_domain:
-            st.info("url_domain == target_domain:")
-            st.info("url domain:: {url_domain}")
-            st.info("taget domain::  {target_domain}")
             return True
             
         # Subdomain match
         if url_domain.endswith('.' + target_domain):
-            st.info("url_domain.endswith('.' + target_domain):")
-            st.info("url domain:: {url_domain}")
-            st.info("taget domain:: {target_domain}")
             return True
             
         # Check if domain is a significant part
         domain_parts = url_domain.split('.')
         if target_domain in domain_parts:
-            st.info("target_domain in domain_parts:")
-            st.info(f"domain parts:: {domain_parts}")
-            st.info(f"target domain:: {target_domain}")
             return True
             
         return False
